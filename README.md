@@ -37,7 +37,7 @@ Ce repository fournit une structure minimale et fonctionnelle pour :
    Le frontend écoute par défaut sur : http://localhost:5173
 
 ### Notes d'architecture et décisions clés
-- JWT + cookie httpOnly : adapté à une SPA + API REST. Pas de session server-side (on évite connect-session-sequelize).
+- JWT + cookie httpOnly : adapté à une SPA + API REST. Pas de session server-side
 - Sequelize : unique ORM pour la BD (models dans backend/src/models).
 - API prefix : `/api/*` (évite la duplication routes/pages).
 - Opérations longues (terraform apply/destroy) sont synchrones dans les services pour commencer ; à moyen terme il est recommandé d'introduire une file d'attente (Redis + Bull) si on attend beaucoup d'opérations simultanées.
