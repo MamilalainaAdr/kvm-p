@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15
+    container_name: kvm_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: kvm_platform
+    ports:
+      - "5432:5432"
+    volumes:
+      - kvm_db:/var/lib/postgresql/data
+
+volumes:
+  kvm_db:

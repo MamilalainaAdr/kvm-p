@@ -1,0 +1,9 @@
+node_modules
+*.log
+.env
+
+*.qcow2
+*.img
+*tfstate*
+mmlr
+mmll
