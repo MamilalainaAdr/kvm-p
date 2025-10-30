@@ -2,6 +2,18 @@ import React, { useEffect, useState } from 'react';
 import API from '../services/api';
 import Modal from './Modal';
 
+function prettyBytes(bytes) {
+  if (bytes == null) return 'N/A';
+  const gb = bytes / (1024 ** 3);
+  if (gb >= 1024) return `${(bytes / (1024 ** 4)).toFixed(2)} TiB`;
+  if (gb >= 1) return `${gb.toFixed(2)} GiB`;
+  const mb = bytes / (1024 ** 2);
+  if (mb >= 1) return `${mb.toFixed(2)} MiB`;
+  const kb = bytes / 1024;
+  if (kb >= 1) return `${kb.toFixed(2)} KiB`;
+  return `${bytes} B`;
+}
+
 function prettySizeFromMiB(mib) {
   if (typeof mib !== 'number' || isNaN(mib)) return 'N/A';
   if (mib >= 1024) return `${(mib / 1024).toFixed(2)} GiB`;
@@ -69,8 +81,8 @@ export default function AdminVirsh() {
               <th className="p-2 text-left">État</th>
               <th className="p-2 text-left">vCPU</th>
               <th className="p-2 text-left">RAM</th>
-              <th className="p-2 text-left">Capacity</th>
-              <th className="p-2 text-left">Allocation</th>
+              <th className="p-2 text-left">Provisioned</th>
+              <th className="p-2 text-left">Used</th>
               <th className="p-2 text-left">Actions</th>
             </tr>
           </thead>
@@ -86,10 +98,15 @@ export default function AdminVirsh() {
                     {vm.state || 'unknown'}
                   </span>
                 </td>
-                <td className="p-2">{vm.vcpu || 'N/A'}</td>
+                <td className="p-2">{vm.vcpu ?? 'N/A'}</td>
                 <td className="p-2">{prettySizeFromMiB(vm.memory_mib)}</td>
-                <td className="p-2">{prettySizeFromMiB(vm.size?.capacity_mib)}</td>
-                <td className="p-2">{prettySizeFromMiB(vm.size?.allocation_mib)}</td>
+                <td className="p-2">
+                  {vm.virtual_bytes ? prettyBytes(vm.virtual_bytes) : prettySizeFromMiB(vm.size?.capacity_mib)}
+                  {vm.thin_provisioned && <span className="ml-2 text-xs text-yellow-600">thin</span>}
+                </td>
+                <td className="p-2">
+                  {vm.actual_bytes ? prettyBytes(vm.actual_bytes) : prettySizeFromMiB(vm.size?.allocation_mib)}
+                </td>
                 <td className="p-2">
                   <button className="px-2 py-1 bg-gray-700 text-white rounded text-sm" onClick={() => openResourcesModal(vm.name)}>Ressources</button>
                 </td>

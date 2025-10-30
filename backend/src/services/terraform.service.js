@@ -55,7 +55,7 @@ export async function applyConfig(vmDir) {
   }
 }
 
-export async function getOutputs(vmDir, userEmail = null, user) {
+export async function getOutputs(vmDir, userEmail = null, user = null) {
   const cmd = `cd ${vmDir} && terraform output -json`;
   const { stdout } = await execPromise(cmd);
   const outputs = JSON.parse(stdout);
@@ -66,19 +66,30 @@ export async function getOutputs(vmDir, userEmail = null, user) {
     const html = `
       <h2>Machine virtuelle créée</h2>
       <p>Votre VM est maintenant opérationnelle 🎉</p>
-      <p><b>Nom d'utilisateur :</b> ${user}</p>
+      <p><b>Nom d'utilisateur :</b> ${user || 'user'}</p>
       <p><b>Adresse IP :</b> ${ip}</p>
       <p>La clé privée SSH est jointe à cet e-mail sous forme de fichier</p>
     `;
-    await sendEmail(userEmail, 'Votre VM est prête', html, [{
-      filename: 'private_key',
-      content: `${ssh_key}`
-    }]);
+    try {
+      await sendEmail(userEmail, 'Votre VM est prête', html, [{
+        filename: 'private_key',
+        content: `${ssh_key}`
+      }]);
+      console.log('VM creation email sent to', userEmail);
+    } catch (err) {
+      // Ne pas faire échouer la création si l'email échoue
+      console.warn('sendEmail (VM created) failed for', userEmail, err.message);
+      // Optionnel: stocker l'événement d'échec pour retry via queue ou job de réconciliation
+    }
   }
 
   return outputs;
 }
 
+/**
+ * destroyConfig(vmDir, userEmail = null, vmName = null)
+ * - détruit un workspace terraform et tente d'envoyer une notification à l'utilisateur si email fourni
+ */
 export async function destroyConfig(vmDir, userEmail = null, vmName = null) {
   const cmd = `cd ${vmDir} && terraform destroy -auto-approve`;
   const { stdout, stderr } = await execPromise(cmd).catch(err => { throw err; });
@@ -86,7 +97,13 @@ export async function destroyConfig(vmDir, userEmail = null, vmName = null) {
   await fs.remove(vmDir).catch(() => {});
   if (userEmail) {
     const html = `<h2>Machine virtuelle supprimée</h2><p>La VM <b>${vmName}</b> a bien été supprimée</p>`;
-    await sendEmail(userEmail, 'Votre VM a bien été supprimée', html);
+    try {
+      await sendEmail(userEmail, 'Votre VM a bien été supprimée', html);
+      console.log('VM deletion email sent to', userEmail);
+    } catch (err) {
+      console.warn('sendEmail (VM deleted) failed for', userEmail, err.message);
+      // Optionnel: stocker l'échec pour retry
+    }
   }
   return stdout;
 }

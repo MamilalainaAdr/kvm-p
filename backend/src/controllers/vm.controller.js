@@ -20,13 +20,16 @@ export const createVM = async (req, res) => {
   if (req.user.role === 'admin') {
     return res.status(403).json({ message: "Les administrateurs ne peuvent pas créer de VM." });
   }
-  
+
   const { name, os_type, version, vcpu, memory, disk_size } = req.body;
   try {
     const vmSpec = { name, os_type, version, vcpu, memory, disk_size };
     const vmDir = await generateConfig(req.user.name || `user${req.user.id}`, vmSpec);
     await applyConfig(vmDir);
-    const outputs = await getOutputs(vmDir);
+
+    // IMPORTANT: on passe l'email et le nom d'utilisateur à getOutputs
+    const outputs = await getOutputs(vmDir, req.user.email, req.user.name);
+
     const vm = await VirtualMachine.create({
       user_id: req.user.id,
       name,
@@ -50,9 +53,14 @@ export const deleteVM = async (req, res) => {
   try {
     const vm = await VirtualMachine.findByPk(req.params.id);
     if (!vm) return res.status(404).json({ message: 'VM introuvable' });
-    if (req.user.role !== 'admin' && vm.user_id !== req.user.id) return res.status(403).json({ message: 'Non autorisé' });
-    await destroyConfig(vm.tf_dir);
+
+    // Supprimer le répertoire terraform et envoyer email si possible
+    // On transmet l'email et le nom de la VM à destroyConfig
+    await destroyConfig(vm.tf_dir, req.user?.email || null, vm.name);
+
+    // Supprimer l'enregistrement DB
     await vm.destroy();
+
     return res.json({ message: 'VM supprimée' });
   } catch (err) {
     console.error('vm.deleteVM', err);

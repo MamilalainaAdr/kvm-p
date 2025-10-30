@@ -3,110 +3,167 @@ import { exec } from 'child_process';
 import { XMLParser } from 'fast-xml-parser';
 const execPromise = util.promisify(exec);
 
-const parser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: '',
-});
+const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
+
+async function run(cmd) {
+  try {
+    const { stdout } = await execPromise(cmd, { maxBuffer: 1024 * 1024 * 10 });
+    return stdout?.toString().trim() || '';
+  } catch (err) {
+    throw new Error(`${cmd} failed: ${err.message}`);
+  }
+}
+
+// --- Helpers -------------------------------------------------------
+
+function parseSizeToBytes(s) {
+  if (!s) return null;
+  const n = parseFloat(s.replace(/[^0-9.]/g, ''));
+  if (isNaN(n)) return null;
+  const lower = s.toLowerCase();
+  if (lower.includes('t')) return Math.round(n * 1024 ** 4);
+  if (lower.includes('g')) return Math.round(n * 1024 ** 3);
+  if (lower.includes('m')) return Math.round(n * 1024 ** 2);
+  if (lower.includes('k')) return Math.round(n * 1024);
+  return Math.round(n);
+}
+
+async function getDiskInfo(path) {
+  // Try qemu-img first
+  if (path?.startsWith('/')) {
+    try {
+      const out = await run(`qemu-img info --output=json ${path}`);
+      const info = JSON.parse(out);
+      return {
+        virtual_bytes: info['virtual-size'] ?? null,
+        actual_bytes: info['actual-size'] ?? null,
+        disk_path: path,
+      };
+    } catch { /* fallback to virsh */ }
+  }
+
+  // Try virsh vol-info fallback
+  try {
+    const out = await run(`virsh vol-info ${path}`);
+    let capacity, allocation;
+    for (const line of out.split('\n')) {
+      const l = line.trim().toLowerCase();
+      if (l.startsWith('capacity')) capacity = parseSizeToBytes(line.split(':')[1]);
+      if (l.startsWith('allocation')) allocation = parseSizeToBytes(line.split(':')[1]);
+    }
+    return {
+      virtual_bytes: capacity ?? null,
+      actual_bytes: allocation ?? null,
+      disk_path: path,
+    };
+  } catch {
+    return { virtual_bytes: null, actual_bytes: null, disk_path: path ?? null };
+  }
+}
+
+function extractDiskPaths(xmlDomain) {
+  if (!xmlDomain?.domain?.devices?.disk) return [];
+  const disks = Array.isArray(xmlDomain.domain.devices.disk)
+    ? xmlDomain.domain.devices.disk
+    : [xmlDomain.domain.devices.disk];
+
+  const paths = [];
+  for (const d of disks) {
+    const src = d?.source;
+    if (!src) continue;
+    if (typeof src === 'string') paths.push(src);
+    if (src.file) paths.push(src.file);
+    if (src['@_file']) paths.push(src['@_file']);
+    if (src.dev) paths.push(src.dev);
+  }
+  return [...new Set(paths)];
+}
+
+// --- Main ----------------------------------------------------------
 
 export async function listVMs() {
-  try {
-    const { stdout } = await execPromise('virsh list --all');
-    return stdout;
-  } catch (err) {
-    throw new Error(`Erreur virsh list: ${err.message}`);
-  }
+  const out = await run('virsh list --all --name');
+  return out.split('\n').map(l => l.trim()).filter(Boolean);
 }
 
 export async function getVMState(vmName) {
   try {
-    const { stdout } = await execPromise(`virsh domstate ${vmName}`);
-    return stdout.trim();
+    return (await run(`virsh domstate ${vmName}`)).trim();
   } catch {
     return 'unknown';
   }
 }
 
 export async function getVMInfo(vmName) {
-  try {
-    const { stdout } = await execPromise(`virsh dumpxml ${vmName}`);
-    const xml = parser.parse(stdout);
+  const xmlOut = await run(`virsh dumpxml ${vmName}`);
+  if (!xmlOut) return null;
 
-    const { stdout: volInfo } = await execPromise(`virsh vol-info --pool default ${vmName}.qcow2`).catch(() => ({ stdout: '' }));
+  const xml = parser.parse(xmlOut);
+  const vcpu = parseInt(xml?.domain?.vcpu?.['#text'] ?? xml?.domain?.vcpu ?? 0, 10) || null;
+  const memKib = parseInt(xml?.domain?.memory?.['#text'] ?? xml?.domain?.memory ?? 0, 10);
+  const memory_mib = memKib ? Math.round(memKib / 1024) : null;
 
-    const filtered = {};
-    for (const line of volInfo.split('\n')) {
-      if (line.startsWith('Capacity')) filtered.Capacity = line.split(':')[1]?.trim();
-      if (line.startsWith('Allocation')) filtered.Allocation = line.split(':')[1]?.trim();
-      if (line.startsWith('Name')) filtered.File = line.split(':')[1]?.trim();
+  // get first disk
+  const disks = extractDiskPaths({ domain: xml.domain });
+  let virtual_bytes = null, actual_bytes = null, disk_path = null;
+
+  for (const d of disks) {
+    const info = await getDiskInfo(d);
+    if (info.virtual_bytes || info.actual_bytes) {
+      virtual_bytes = info.virtual_bytes;
+      actual_bytes = info.actual_bytes;
+      disk_path = info.disk_path;
+      break;
     }
-
-    function formatSize(sizeStr) {
-      if (!sizeStr) return 'N/A';
-      const size = parseFloat(sizeStr);
-      // vol-info prints sizes in KiB (or bytes depending on virsh), attempt a safe formatting:
-      if (size > 1024 * 1024) return (size / (1024 * 1024)).toFixed(2) + ' GiB';
-      if (size > 1024) return (size / 1024).toFixed(2) + ' MiB';
-      return size.toFixed(2) + ' KiB';
-    }
-
-    function extractValue(obj) {
-      if (!obj) return 'N/A';
-      if (typeof obj === 'object' && '_text' in obj) return obj._text;
-      if (typeof obj === 'object' && '#text' in obj) return obj['#text'];
-      if (typeof obj === 'string' || typeof obj === 'number') return obj.toString();
-      return JSON.stringify(obj);
-    }
-
-    const memKiB = parseInt(extractValue(xml.domain.memory)) || 0;
-    const memory = memKiB ? (memKiB >= 1024 ? `${(memKiB / 1024).toFixed(2)} MiB` : `${memKiB} KiB`) : 'N/A';
-    const vcpu = extractValue(xml.domain.vcpu);
-
-    return {
-      memory,
-      vcpu,
-      size: {
-        Capacity: formatSize(filtered.Capacity),
-        Allocation: formatSize(filtered.Allocation),
-      },
-      rawXml: xml // keep raw parsed xml in case extra details are needed
-    };
-  } catch (err) {
-    throw new Error(`Erreur virsh dumpxml pour ${vmName}: ${err.message}`);
   }
+
+  const capacity_mib = virtual_bytes ? Math.round(virtual_bytes / (1024 * 1024)) : null;
+  const allocation_mib = actual_bytes ? Math.round(actual_bytes / (1024 * 1024)) : null;
+  const thin_provisioned = virtual_bytes && actual_bytes
+    ? virtual_bytes > actual_bytes * 4
+    : false;
+
+  return {
+    vcpu,
+    memory_mib,
+    size: { capacity_mib, allocation_mib },
+    disk_path,
+    virtual_bytes,
+    actual_bytes,
+    thin_provisioned,
+    rawXml: xml,
+  };
 }
 
-export async function getVMResources(vmName) {
-  try {
-    const { stdout } = await execPromise(`virsh dominfo ${vmName}`);
-    return stdout;
-  } catch (err) {
-    throw new Error(`Erreur virsh dominfo: ${err.message}`);
-  }
-}
-
-/**
- * New helper: get a summarized object for a VM:
- * { name, state, vcpu, memory, size: { Capacity, Allocation } }
- */
 export async function getVMSummary(vmName) {
   try {
-    const [state, info] = await Promise.all([getVMState(vmName), getVMInfo(vmName)]);
+    const [state, info] = await Promise.all([
+      getVMState(vmName),
+      getVMInfo(vmName),
+    ]);
     return {
       name: vmName,
-      state,
-      vcpu: info?.vcpu || 'N/A',
-      memory: info?.memory || 'N/A',
-      size: info?.size || { Capacity: 'N/A', Allocation: 'N/A' },
+      state: state || 'unknown',
+      vcpu: info?.vcpu ?? null,
+      memory_mib: info?.memory_mib ?? null,
+      size: info?.size ?? { capacity_mib: null, allocation_mib: null },
+      virtual_bytes: info?.virtual_bytes ?? null,
+      actual_bytes: info?.actual_bytes ?? null,
+      disk_path: info?.disk_path ?? null,
+      thin_provisioned: info?.thin_provisioned ?? false,
     };
   } catch (err) {
-    // don't throw for a single VM summary — return best-effort object
     return {
       name: vmName,
       state: 'unknown',
-      vcpu: 'N/A',
-      memory: 'N/A',
-      size: { Capacity: 'N/A', Allocation: 'N/A' },
-      error: err.message
+      vcpu: null,
+      memory_mib: null,
+      size: { capacity_mib: null, allocation_mib: null },
+      virtual_bytes: null,
+      actual_bytes: null,
+      disk_path: null,
+      thin_provisioned: false,
+      error: err.message,
     };
   }
 }

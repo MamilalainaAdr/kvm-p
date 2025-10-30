@@ -1,28 +1,31 @@
+import util from 'util';
+import { exec } from 'child_process';
 import * as virshService from '../services/virsh.service.js';
+const execPromise = util.promisify(exec);
 
 /**
  * Return a structured list of VMs with summary information.
- * Response: { vms: [ { name, state, vcpu, memory, size: {Capacity, Allocation} , error? }, ... ] }
+ * Response: { vms: [ { name, state, vcpu, memory_mib, size: {capacity_mib, allocation_mib}, virtual_bytes, actual_bytes, disk_path, thin_provisioned }, ... ] }
  */
 export const listVirsh = async (req, res) => {
   try {
-    const out = await virshService.listVMs();
-    const output = out || '';
-    // parse names from 'virsh list --all' output
-    const lines = output
-      .split('\n')
-      .map(l => l.trim())
-      .filter(l => l && !l.startsWith('Id') && !l.includes('----'));
+    const { stdout } = await execPromise('virsh list --all --name 2>/dev/null');
+    const names = (stdout || '').split('\n').map(l => l.trim()).filter(Boolean);
 
-    const names = lines
-      .map(line => {
-        const parts = line.split(/\s+/);
-        return parts.length > 1 ? parts[1] : parts[0];
-      })
-      .filter(Boolean);
-
-    // For each name, fetch summary (state, vcpu, memory, size)
-    const summaries = await Promise.all(names.map(name => virshService.getVMSummary(name)));
+    // Use service.getVMSummary for each name
+    const settled = await Promise.allSettled(names.map(name => virshService.getVMSummary(name)));
+    const summaries = settled.map(s => (s.status === 'fulfilled' ? s.value : {
+      name: s.reason?.vmName || 'unknown',
+      state: 'unknown',
+      vcpu: null,
+      memory_mib: null,
+      size: { capacity_mib: null, allocation_mib: null },
+      virtual_bytes: null,
+      actual_bytes: null,
+      disk_path: null,
+      thin_provisioned: false,
+      error: s.reason?.message || 'Erreur'
+    }));
 
     return res.json({ vms: summaries });
   } catch (err) {
