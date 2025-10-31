@@ -36,9 +36,10 @@ export default function VMs(){
   const create = async (e) => {
     e.preventDefault();
     try {
+      setLoading(true);
+      setCreateOpen(false);
       await API.post('/vms', form);
       setMsg('VM créée');
-      setCreateOpen(false);
       fetch();
     } catch (err) {
       setMsg(err.response?.data?.message || err.message || 'Erreur');
@@ -48,7 +49,9 @@ export default function VMs(){
   const remove = async (id) => {
     if (!confirm('Supprimer cette VM ?')) return;
     try {
+      setLoading(true);
       await API.delete(`/vms/${id}`);
+      setMsg('VM supprimée');
       fetch();
     } catch (err) { setMsg('Erreur'); }
   };

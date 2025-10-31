@@ -16,7 +16,7 @@ export default function Home(){
 
   return (
     <div className="text-center mt-10">
-      <h1 className="text-3xl font-bold">KVM Platform</h1>
+      <h1 className="text-3xl font-bold">OBox</h1>
       <p className="mt-4">Gestion simple de VMs — admin et utilisateurs</p>
       <div className="mt-6 flex justify-center gap-4">
         <Link to="/register" className="px-4 py-2 bg-green-600 text-white rounded">S'inscrire</Link>

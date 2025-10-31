@@ -15,7 +15,7 @@ const transporter = nodemailer.createTransport({
 export async function sendEmail(to, subject, html, attachments = []) {
   try {
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+      from: process.env.EMAIL_FROM || 'OBox',
       to,
       subject,
       html,
@@ -37,9 +37,9 @@ export const sendVerificationEmail = async (user, token) => {
     <a href="${url}">${url}</a>`;
   try {
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'no-reply@example.com',
+      from: process.env.EMAIL_FROM || 'OBox',
       to: user.email,
-      subject: 'Vérification email - KVM Platform',
+      subject: 'Vérification email - OBox',
       html
     });
     console.log('Verification email sent to', user.email);

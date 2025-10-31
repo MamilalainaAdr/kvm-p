@@ -14,7 +14,7 @@ function Item({ to, children, end = false }) {
     >
       {({ isActive }) => (
         <>
-          {isActive && <span className="absolute left-0 top-0 bottom-0 w-1 bg-sky-600 rounded-r" />}
+          {isActive && <span className="absolute left-0 top-0 bottom-0 w-1 bg-yellow-500 rounded-r" />}
           <span className="pl-3">{children}</span>
         </>
       )}
@@ -63,9 +63,9 @@ export default function Sidebar({ className = '' }) {
         <button
           type="button"
           onClick={logout}
-          className="w-full flex justify-center py-2 rounded-md text-sm bg-gray-200 hover:bg-gray-400"
+          className="w-full flex justify-center py-2 rounded-md text-sm bg-red-600 hover:bg-red-800"
         >
-          <span className="pl-3">Logout</span>
+          <span className="text-white font-medium">Logout</span>
         </button>
       </div>
     </aside>

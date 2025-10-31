@@ -36,7 +36,7 @@ export default function Navbar({ onToggleSidebar, sidebarOpen }) {
             </button>
 
             <Link to="/" className="flex items-center gap-2">
-              <div className="bg-sky-600 text-white font-bold px-2 py-1 rounded">KVM-P</div>
+              <div className="bg-red-600 text-white font-bold px-2 py-1 rounded">OBox</div>
             </Link>
           </div>
 
