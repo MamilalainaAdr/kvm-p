@@ -1,6 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import API from '../services/api';
-import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
@@ -13,8 +12,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data } = await API.get('/auth/me');
       setUser(data.user);
-    } catch (err) {
-      // Erreur silencieuse (non connecté ou token expiré)
+    } catch {
       setUser(null);
     } finally {
       setLoading(false);
@@ -26,22 +24,9 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const logout = async () => {
-    try {
-      await API.post('/auth/logout');
-      toast.success('Déconnecté', {
-        id: 'logout-success',
-        duration: 3000,
-        style: { fontFamily: 'Inter, ui-sans-serif, system-ui' }
-      });
-    } catch (e) {
-      toast.error('Erreur déconnexion');
-    }
+    await API.post('/auth/logout');
     setUser(null);
   };
 
-  return (
-    <AuthContext.Provider value={{ user, setUser, loading, logout, refresh: fetchMe }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={{ user, setUser, loading, logout, refresh: fetchMe }}>{children}</AuthContext.Provider>;
 };

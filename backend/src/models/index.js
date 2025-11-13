@@ -1,14 +1,13 @@
-import dotenv from 'dotenv';
-dotenv.config();
-import { sequelize as seq } from '../config/db.js';
-import defineUser from './user.js';
-import defineVM from './virtualMachine.js';
+import { sequelize } from '../config/db.js';
+import { User } from './User.js';
+import { VirtualMachine } from './VirtualMachine.js';
 
-export const sequelize = seq;
-export const User = defineUser(sequelize);
-export const VirtualMachine = defineVM(sequelize);
+// ✅ Initialiser D'ABORD les modèles avec sequelize
+User.initModel(sequelize);
+VirtualMachine.initModel(sequelize);
 
+// ✅ Ensuite définir les associations
 User.hasMany(VirtualMachine, { foreignKey: 'user_id', onDelete: 'CASCADE' });
 VirtualMachine.belongsTo(User, { foreignKey: 'user_id' });
 
-export default sequelize;
+export { sequelize, User, VirtualMachine };

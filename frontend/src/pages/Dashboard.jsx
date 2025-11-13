@@ -1,11 +1,11 @@
-import React from 'react';
 import { useAuth } from '../context/AuthContext';
 
-export default function Dashboard(){
+export default function Dashboard() {
   const { user } = useAuth();
   return (
-    <div className="container mt-8">
-    <p className="mt-2">Bienvenue sur votre espace, {user?.name}.</p>
+    <div className="bg-white p-6 rounded shadow">
+      <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
+      <p>Bienvenue, {user?.name} ({user?.role})</p>
     </div>
   );
 }
