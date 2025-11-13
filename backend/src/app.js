@@ -9,6 +9,7 @@ import sequelize from './models/index.js';
 import authRoutes from './routes/api/auth.js';
 import vmsRoutes from './routes/api/vms.js';
 import adminRoutes from './routes/api/admin.js';
+import profileRoutes from './routes/api/profile.js'; // NOUVEAU
 import { createDefaultAdmin } from './config/initAdmin.js';
 import { vmQueue, emailQueue, syncQueue } from './services/queue.service.js';
 
@@ -23,9 +24,11 @@ app.use(cors({
   credentials: true
 }));
 
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/vms', vmsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/profile', profileRoutes); // NOUVEAU
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
@@ -39,27 +42,18 @@ const PORT = process.env.PORT || 4000;
 
     await createDefaultAdmin();
 
-    // Démarrer les workers en processus séparés
+    // Workers
     if (process.env.START_WORKERS !== 'false') {
       const { spawn } = await import('child_process');
-      
-      spawn('node', ['src/workers/vm.worker.js'], { 
-        stdio: 'inherit',
-        env: { ...process.env, START_WORKERS: 'false' }
-      });
-      
-      spawn('node', ['src/workers/email.worker.js'], { 
-        stdio: 'inherit',
-        env: { ...process.env, START_WORKERS: 'false' }
-      });
-      
-      spawn('node', ['src/workers/sync.worker.js'], { 
-        stdio: 'inherit',
-        env: { ...process.env, START_WORKERS: 'false' }
+      ['vm.worker.js', 'email.worker.js', 'sync.worker.js'].forEach(worker => {
+        spawn('node', [`src/workers/${worker}`], { 
+          stdio: 'inherit',
+          env: { ...process.env, START_WORKERS: 'false' }
+        });
       });
 
-      // Job périodique de sync
-      syncQueue.add('sync-state', {}, { repeat: { cron: '*/30 * * * *' } });
+      // Sync toutes les 5 min seulement
+      syncQueue.add('sync-state', {}, { repeat: { cron: '*/5 * * * *' } });
     }
 
     app.listen(PORT, () => console.log(`🚀 Backend running on http://localhost:${PORT}`));

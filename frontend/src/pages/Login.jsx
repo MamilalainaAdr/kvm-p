@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import API from '../services/api';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login(){
@@ -42,7 +42,12 @@ export default function Login(){
       <form onSubmit={submit}>
         <input className="w-full mb-2 p-2 border" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
         <input className="w-full mb-2 p-2 border" placeholder="Mot de passe" type="password" value={password} onChange={e=>setPassword(e.target.value)} />
-        <button className="w-full bg-blue-600 text-white p-2 rounded">Se connecter</button>
+        <button className="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded">Se connecter</button>
+        <div className="mt-4 text-center">
+          <Link to="/reset-password" className="text-sm text-blue-600 hover:underline">
+            Mot de passe oublié ?
+          </Link>
+        </div>
       </form>
     </div>
   );

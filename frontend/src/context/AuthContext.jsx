@@ -28,7 +28,11 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       await API.post('/auth/logout');
-      toast.success('Déconnecté');
+      toast.success('Déconnecté', {
+        id: 'logout-success',
+        duration: 3000,
+        style: { fontFamily: 'Inter, ui-sans-serif, system-ui' }
+      });
     } catch (e) {
       toast.error('Erreur déconnexion');
     }

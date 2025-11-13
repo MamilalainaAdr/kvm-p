@@ -8,9 +8,8 @@ import Register from './pages/Register';
 import VerifyEmail from './pages/VerifyEmail';
 import Dashboard from './pages/Dashboard';
 import VMs from './pages/VMs';
-import AdminLayout from './pages/AdminLayout';
-import AdminUsers from './pages/AdminUsers';
-import AdminVirsh from './components/AdminVirsh';
+import Profile from './pages/Profile';
+import ResetPassword from './pages/ResetPassword';
 import PrivateRoute from './components/PrivateRoute';
 import AdminRoute from './components/AdminRoute';
 
@@ -20,29 +19,18 @@ export default function App() {
       <Toaster />
       <Layout>
         <Routes>
-          {/* Public */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
-
-          {/* User */}
-          <Route
-            path="/dashboard"
-            element={<PrivateRoute><Dashboard /></PrivateRoute>}
-          />
-          <Route
-            path="/dashboard/vms"
-            element={<PrivateRoute><VMs /></PrivateRoute>}
-          />
-
-          {/* Admin */}
-          <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
-            <Route index element={<AdminUsers />} />
-            <Route path="vms" element={<AdminVirsh />} />
-          </Route>
-
-          {/* Fallback */}
+          <Route path="/reset-password" element={<ResetPassword />} />
+          
+          <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+          <Route path="/vms" element={<PrivateRoute><VMs /></PrivateRoute>} />
+          <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
+          
+          <Route path="/admin/vms" element={<AdminRoute><VMs /></AdminRoute>} />
+          
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>

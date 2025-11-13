@@ -20,7 +20,7 @@ export default function Layout({ children }) {
   }, [sidebarOpen]);
 
   // Pages publiques sans layout
-  const noLayoutPaths = ['/', '/login', '/register', '/verify-email'];
+  const noLayoutPaths = ['/', '/login', '/register', '/verify-email', '/reset-password'];
   const hideLayout = noLayoutPaths.includes(location.pathname);
 
   if (hideLayout) {

@@ -2,37 +2,34 @@ import fs from 'fs-extra';
 import path from 'path';
 import { exec } from 'child_process';
 import util from 'util';
-import { sendEmail } from './email.service.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
 const execPromise = util.promisify(exec);
 const BASE_DIR = path.resolve(process.env.TERRAFORM_BASE_DIR || './terraform');
 const TEMPLATE_DIR = path.resolve(process.env.TERRAFORM_TEMPLATE_DIR || path.join(BASE_DIR, 'cloud_img'));
-
-export async function createWorkspace(user) {
-  const userDir = path.join(BASE_DIR, user);
-  await fs.ensureDir(userDir);
-  return userDir;
-}
+const RETRY_ATTEMPTS = parseInt(process.env.TERRAFORM_RETRY_ATTEMPTS || '3');
 
 export async function generateConfig(user, vmSpec) {
-  const userDir = await createWorkspace(user);
+  const userDir = path.join(BASE_DIR, user);
+  await fs.ensureDir(userDir);
   const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
   const vmDir = path.join(userDir, `${user}_${timestamp}`);
   await fs.copy(TEMPLATE_DIR, vmDir);
+  
   const varsPath = path.join(vmDir, 'terraform.tfvars');
   let content = await fs.readFile(varsPath, 'utf-8');
+
+  // Logique conditionnelle pour l'extension
+  const imageExt = vmSpec.version === '2404' || vmSpec.version === '2204' ? 'img' : 'qcow2';
 
   content = content
     .replace(/name\s*=\s*".*"/, `name = "${vmSpec.name}-${user}"`)
     .replace(/volume_name\s*=\s*".*"/, `volume_name = "${vmSpec.name}.qcow2"`)
-    .replace(/image_path\s*=\s*".*"/, `image_path = "./images/${vmSpec.os_type}/${vmSpec.version}.qcow2"`)
+    .replace(/image_path\s*=\s*".*"/, `image_path = "./images/${vmSpec.os_type}/${vmSpec.version}.${imageExt}"`)
     .replace(/vcpu\s*=\s*\d+/, `vcpu = ${vmSpec.vcpu}`)
     .replace(/memory\s*=\s*\d+/, `memory = ${vmSpec.memory}`)
-    .replace(/init_iso\s*=\s*".*"/, `init_iso = "${timestamp}commoninit.iso"`)
     .replace(/disk_size\s*=\s*\d+/, `disk_size = ${vmSpec.disk_size}`)
-    .replace(/final_disk_name\s*=\s*".*"/, `final_disk_name = "${vmSpec.name}-${user}.qcow2"`)
     .replace(/username\s*=\s*".*"/, `username = "${user}"`);
 
   await fs.writeFile(varsPath, content);
@@ -43,90 +40,28 @@ export async function applyConfig(vmDir) {
   const cmd = `cd ${vmDir} && terraform init -input=false && terraform apply -auto-approve`;
   try {
     const { stdout, stderr } = await execPromise(cmd, { maxBuffer: 1024 * 1024 * 10 });
-    if (stderr && !stderr.includes('Warning')) {
-      await fs.remove(vmDir);
-      throw new Error(stderr);
-    }
+    if (stderr && !stderr.includes('Warning')) throw new Error(stderr);
     return stdout;
   } catch (err) {
-    console.error('Erreur apply VM:', err.message);
     await fs.remove(vmDir).catch(() => {});
     throw err;
   }
 }
 
-export async function getOutputs(vmDir, userEmail = null, user = null) {
+export async function getOutputs(vmDir) {
   const cmd = `cd ${vmDir} && terraform output -json`;
   const { stdout } = await execPromise(cmd);
-  const outputs = JSON.parse(stdout);
-
-  if (userEmail && outputs.vm_cloud_IP?.value && outputs.vm_cloud_ssh_private_key?.value) {
-    const ip = outputs.vm_cloud_IP.value;
-    const ssh_key = outputs.vm_cloud_ssh_private_key.value;
-    const html = `
-      <h2>Machine virtuelle créée</h2>
-      <p>Votre VM est maintenant opérationnelle 🎉</p>
-      <p><b>Nom d'utilisateur :</b> ${user || 'user'}</p>
-      <p><b>Adresse IP :</b> ${ip}</p>
-      <p>La clé privée SSH est jointe à cet e-mail sous forme de fichier</p>
-    `;
-    try {
-      await sendEmail(userEmail, 'Votre VM est prête', html, [{
-        filename: 'private_key',
-        content: `${ssh_key}`
-      }]);
-      console.log('VM creation email sent to', userEmail);
-    } catch (err) {
-      // Ne pas faire échouer la création si l'email échoue
-      console.warn('sendEmail (VM created) failed for', userEmail, err.message);
-      // Optionnel: stocker l'événement d'échec pour retry via queue ou job de réconciliation
-    }
-  }
-
-  return outputs;
+  return JSON.parse(stdout);
 }
 
-/**
- * destroyConfig(vmDir, userEmail = null, vmName = null)
- * - détruit un workspace terraform et tente d'envoyer une notification à l'utilisateur si email fourni
- */
-export async function destroyConfig(vmDir, userEmail = null, vmName = null) {
+export async function destroyConfig(vmDir) {
   const cmd = `cd ${vmDir} && terraform destroy -auto-approve`;
-  const { stdout, stderr } = await execPromise(cmd).catch(err => { throw err; });
-  if (stderr && !stderr.includes('Warning')) throw new Error(stderr);
+  const { stdout } = await execPromise(cmd);
   await fs.remove(vmDir).catch(() => {});
-  if (userEmail) {
-    const html = `<h2>Machine virtuelle supprimée</h2><p>La VM <b>${vmName}</b> a bien été supprimée</p>`;
-    try {
-      await sendEmail(userEmail, 'Votre VM a bien été supprimée', html);
-      console.log('VM deletion email sent to', userEmail);
-    } catch (err) {
-      console.warn('sendEmail (VM deleted) failed for', userEmail, err.message);
-      // Optionnel: stocker l'échec pour retry
-    }
-  }
   return stdout;
 }
 
-export async function getVirshProvider() {
-  return `
-terraform {
-  required_providers {
-    libvirt = {
-      source = "dmacvicar/libvirt"
-      version = "~> 0.7.0"
-    }
-  }
-}
-
-provider "libvirt" {
-  uri = "qemu:///system"
-}
-`;
-}
-
-// Gère les erreurs de manière résiliente
-export async function applyConfigWithRetry(vmDir, retries = 3) {
+export async function applyConfigWithRetry(vmDir, retries = RETRY_ATTEMPTS) {
   for (let i = 0; i < retries; i++) {
     try {
       return await applyConfig(vmDir);
