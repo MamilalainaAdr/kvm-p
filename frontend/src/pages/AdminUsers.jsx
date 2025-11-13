@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import API from '../services/api';
+import toast from 'react-hot-toast';
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -24,20 +25,34 @@ export default function AdminUsers() {
 
   const toggleRole = async (id) => {
     try {
-      await API.post(`/admin/users/${id}/toggle-role`);
+      await toast.promise(
+        API.post(`/admin/users/${id}/toggle-role`),
+        {
+          loading: 'Modification...',
+          success: 'Rôle modifié',
+          error: 'Erreur'
+        }
+      );
       fetchUsers();
     } catch (err) {
-      setMsg('Erreur modification rôle: ' + (err.response?.data?.message || err.message));
+      setMsg(err.response?.data?.message || 'Erreur');
     }
   };
 
   const deleteUser = async (id) => {
     if (!confirm('Supprimer cet utilisateur ?')) return;
     try {
-      await API.delete(`/admin/users/${id}`);
+      await toast.promise(
+        API.delete(`/admin/users/${id}`),
+        {
+          loading: 'Suppression...',
+          success: 'Utilisateur supprimé',
+          error: 'Erreur suppression'
+        }
+      );
       fetchUsers();
     } catch (err) {
-      setMsg('Erreur suppression: ' + (err.response?.data?.message || err.message));
+      setMsg('Erreur: ' + (err.response?.data?.message || err.message));
     }
   };
 

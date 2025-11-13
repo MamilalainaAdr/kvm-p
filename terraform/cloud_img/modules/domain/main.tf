@@ -2,6 +2,7 @@ terraform {
   required_providers {
     libvirt = {
       source = "dmacvicar/libvirt"
+      version = "= 0.8.3"
     }
   }
 }
@@ -14,6 +15,7 @@ resource "libvirt_domain" "domain" {
   name      = var.vm_name
   memory    = var.memory
   vcpu      = var.vcpu
+  
   cloudinit = var.cloudinit_id
 
   network_interface {

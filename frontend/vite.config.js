@@ -6,12 +6,19 @@ export default defineConfig({
   server: { 
     port: 5173,
     proxy: {
-      // Proxy toutes les requêtes /api vers le backend local
       '/api': {
         target: 'http://localhost:4000',
         changeOrigin: true,
         secure: false,
-        // rewrite: path => path.replace(/^\/api/, '/api') // pas nécessaire ici
+        // IMPORTANT : configure pour transmettre les cookies
+        configure: (proxy, options) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            const cookie = req.headers.cookie;
+            if (cookie) {
+              proxyReq.setHeader('cookie', cookie);
+            }
+          });
+        }
       }
     }
   }

@@ -167,3 +167,51 @@ export async function getVMSummary(vmName) {
     };
   }
 }
+
+export async function startVM(vmName) {
+  await run(`virsh start ${vmName}`);
+  return { success: true };
+}
+
+export async function stopVM(vmName) {
+  await run(`virsh shutdown ${vmName}`);
+  return { success: true };
+}
+
+export async function rebootVM(vmName) {
+  await run(`virsh reboot ${vmName}`);
+  return { success: true };
+}
+
+export async function forceStopVM(vmName) {
+  await run(`virsh destroy ${vmName}`);
+  return { success: true };
+}
+
+export async function getVMResources(vmName) {
+  try {
+    const [state, info] = await Promise.all([
+      getVMState(vmName),
+      getVMInfo(vmName),
+    ]);
+
+    return {
+      name: vmName,
+      state,
+      vcpu: info?.vcpu ?? null,
+      memory_mib: info?.memory_mib ?? null,
+      disk: {
+        capacity_mib: info?.size?.capacity_mib ?? null,
+        allocation_mib: info?.size?.allocation_mib ?? null,
+        virtual_bytes: info?.virtual_bytes ?? null,
+        actual_bytes: info?.actual_bytes ?? null,
+        path: info?.disk_path ?? null,
+        thin_provisioned: info?.thin_provisioned ?? false,
+      },
+      raw: info?.rawXml ?? null,
+      timestamp: new Date().toISOString(),
+    };
+  } catch (err) {
+    throw new Error(`Failed to get VM resources for ${vmName}: ${err.message}`);
+  }
+}

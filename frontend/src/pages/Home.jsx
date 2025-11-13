@@ -1,26 +1,20 @@
-import React, { useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import React from 'react';
+import { Link } from 'react-router-dom';
 
-export default function Home(){
-  const { user, loading } = useAuth();
-  const nav = useNavigate();
-
-  useEffect(() => {
-    if (!loading && user) {
-      nav('/dashboard', { replace: true });
-    }
-  }, [user, loading, nav]);
-
-  if (!loading && user) return null;
-
+export default function Home() {
   return (
-    <div className="text-center mt-10">
-      <h1 className="text-3xl font-bold">OBox</h1>
-      <p className="mt-4">Gestion simple de VMs — admin et utilisateurs</p>
-      <div className="mt-6 flex justify-center gap-4">
-        <Link to="/register" className="px-4 py-2 bg-green-600 text-white rounded">S'inscrire</Link>
-        <Link to="/login" className="px-4 py-2 bg-blue-600 text-white rounded">Se connecter</Link>
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-5xl font-bold text-slate-900 mb-4">OBox</h1>
+        <p className="text-lg text-slate-600 mb-8">Gestion simple de VMs — admin et utilisateurs</p>
+        <div className="flex justify-center gap-4">
+          <Link to="/register" className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition">
+            S'inscrire
+          </Link>
+          <Link to="/login" className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition">
+            Se connecter
+          </Link>
+        </div>
       </div>
     </div>
   );

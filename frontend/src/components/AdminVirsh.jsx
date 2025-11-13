@@ -1,22 +1,29 @@
 import React, { useEffect, useState } from 'react';
 import API from '../services/api';
-import Modal from './Modal';
+import Modal from './SimpleModal';
+import toast from 'react-hot-toast';
 
 function prettyBytes(bytes) {
-  if (bytes == null) return 'N/A';
-  const gb = bytes / (1024 ** 3);
-  if (gb >= 1024) return `${(bytes / (1024 ** 4)).toFixed(2)} TiB`;
-  if (gb >= 1) return `${gb.toFixed(2)} GiB`;
-  const mb = bytes / (1024 ** 2);
-  if (mb >= 1) return `${mb.toFixed(2)} MiB`;
-  const kb = bytes / 1024;
-  if (kb >= 1) return `${kb.toFixed(2)} KiB`;
-  return `${bytes} B`;
+  if (bytes == null || bytes === 0 || isNaN(bytes)) return 'N/A';
+  
+  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
+  let size = bytes;
+  let unitIndex = 0;
+  
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex++;
+  }
+  
+  return `${size.toFixed(2)} ${units[unitIndex]}`;
 }
 
 function prettySizeFromMiB(mib) {
-  if (typeof mib !== 'number' || isNaN(mib)) return 'N/A';
-  if (mib >= 1024) return `${(mib / 1024).toFixed(2)} GiB`;
+  if (mib == null || mib === 0 || isNaN(mib)) return 'N/A';
+  
+  if (mib >= 1024) {
+    return `${(mib / 1024).toFixed(2)} GiB`;
+  }
   return `${mib.toFixed(2)} MiB`;
 }
 
@@ -58,6 +65,23 @@ export default function AdminVirsh() {
       setModalContent({ error: err.response?.data?.message || err.message });
     } finally {
       setModalLoading(false);
+    }
+  };
+
+  // Ajouter fonction pour actions admin
+  const performAdminAction = async (vmName, action) => {
+    try {
+      await toast.promise(
+        API.post(`/admin/vms/${encodeURIComponent(vmName)}/action`, { action }),
+        {
+          loading: `Action ${action} sur ${vmName}...`,
+          success: 'Action effectuée',
+          error: 'Erreur action'
+        }
+      );
+      fetchList();
+    } catch (err) {
+      // déjà géré
     }
   };
 
@@ -109,7 +133,22 @@ export default function AdminVirsh() {
                 </td>
                 <td className="p-2">
                   <button className="px-2 py-1 bg-gray-700 text-white rounded text-sm" onClick={() => openResourcesModal(vm.name)}>Ressources</button>
-                </td>
+                  {vm.state?.toLowerCase().includes('run') && (
+                    <>
+                      <button className="px-2 py-1 bg-yellow-600 text-white rounded text-sm mr-2" onClick={() => performAdminAction(vm.name, 'reboot')}>
+                        Reboot
+                      </button>
+                      <button className="px-2 py-1 bg-red-600 text-white rounded text-sm mr-2" onClick={() => performAdminAction(vm.name, 'stop')}>
+                        Stop
+                      </button>
+                    </>
+                  )}
+                  {vm.state?.toLowerCase().includes('shut') && (
+                    <button className="px-2 py-1 bg-green-600 text-white rounded text-sm mr-2" onClick={() => performAdminAction(vm.name, 'start')}>
+                      Start
+                    </button>
+                  )}
+                </td>                
               </tr>
             )) : (
               <tr><td colSpan={7} className="p-4 text-sm text-slate-500">Aucune VM détectée.</td></tr>

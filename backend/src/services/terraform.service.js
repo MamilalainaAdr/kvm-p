@@ -107,3 +107,33 @@ export async function destroyConfig(vmDir, userEmail = null, vmName = null) {
   }
   return stdout;
 }
+
+export async function getVirshProvider() {
+  return `
+terraform {
+  required_providers {
+    libvirt = {
+      source = "dmacvicar/libvirt"
+      version = "~> 0.7.0"
+    }
+  }
+}
+
+provider "libvirt" {
+  uri = "qemu:///system"
+}
+`;
+}
+
+// Gère les erreurs de manière résiliente
+export async function applyConfigWithRetry(vmDir, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await applyConfig(vmDir);
+    } catch (err) {
+      if (i === retries - 1) throw err;
+      console.log(`[Terraform] Retry ${i + 1}/${retries}...`);
+      await new Promise(r => setTimeout(r, 5000));
+    }
+  }
+}

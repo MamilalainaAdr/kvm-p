@@ -1,13 +1,17 @@
 import { VirtualMachine } from '../models/index.js';
-import { generateConfig, applyConfig, getOutputs, destroyConfig } from '../services/terraform.service.js';
+import { generateConfig } from '../services/terraform.service.js';
+import { vmQueue } from '../services/queue.service.js';
+import dotenv from 'dotenv';
+dotenv.config();
 
 export const listVMs = async (req, res) => {
   try {
-    if (req.user.role === 'admin') {
-      const vms = await VirtualMachine.findAll({ order: [['id', 'DESC']] });
-      return res.json({ vms });
-    }
-    const vms = await VirtualMachine.findAll({ where: { user_id: req.user.id }, order: [['id', 'DESC']] });
+    const where = req.user.role === 'admin' ? {} : { user_id: req.user.id };
+    const vms = await VirtualMachine.findAll({ 
+      where, 
+      order: [['id', 'DESC']],
+      include: req.user.role === 'admin' ? ['User'] : []
+    });
     return res.json({ vms });
   } catch (err) {
     console.error('vm.listVMs', err);
@@ -16,36 +20,54 @@ export const listVMs = async (req, res) => {
 };
 
 export const createVM = async (req, res) => {
-  // Empêche explicitement l'admin de créer des VMs
   if (req.user.role === 'admin') {
     return res.status(403).json({ message: "Les administrateurs ne peuvent pas créer de VM." });
   }
 
   const { name, os_type, version, vcpu, memory, disk_size } = req.body;
+  
+  // Validation
+  if (!name || !os_type || !version) {
+    return res.status(400).json({ message: "Tous les champs sont requis" });
+  }
+
   try {
-    const vmSpec = { name, os_type, version, vcpu, memory, disk_size };
-    const vmDir = await generateConfig(req.user.name || `user${req.user.id}`, vmSpec);
-    await applyConfig(vmDir);
+    // Vérifie existence
+    const existing = await VirtualMachine.findOne({
+      where: { user_id: req.user.id, name }
+    });
+    if (existing) {
+      return res.status(400).json({ message: "Une VM avec ce nom existe déjà" });
+    }
 
-    // IMPORTANT: on passe l'email et le nom d'utilisateur à getOutputs
-    const outputs = await getOutputs(vmDir, req.user.email, req.user.name);
-
+    // ⚠️ CRÉE SEULEMENT L'ENREGISTREMENT DB - PAS DE DOSSIER ICI
     const vm = await VirtualMachine.create({
       user_id: req.user.id,
       name,
       os_type,
       version,
-      vcpu,
-      memory,
-      disk_size,
-      ip_address: outputs.vm_cloud_IP?.value || null,
-      status: 'running',
-      tf_dir: vmDir
+      vcpu: parseInt(vcpu) || 1,
+      memory: parseInt(memory) || 512,
+      disk_size: parseInt(disk_size) || 10,
+      status: 'creating',
+      ip_address: null,
+      tf_dir: null
     });
-    return res.status(201).json({ vm });
+
+    // Ajoute à la file - LE WORKER CRÉERA LE DOSSIER
+    await vmQueue.add('create', {
+      user: req.user,
+      vmSpec: { name, os_type, version, vcpu, memory, disk_size },
+      vmId: vm.id
+    });
+
+    return res.status(202).json({ 
+      message: 'VM en cours de création', 
+      vm: { id: vm.id, status: 'creating', name } 
+    });
   } catch (err) {
-    console.error('vm.createVM', err);
-    return res.status(500).json({ message: 'Erreur création VM' });
+    console.error('vm.createVM error:', err);
+    return res.status(500).json({ message: err.message || 'Erreur création VM' });
   }
 };
 
@@ -54,16 +76,55 @@ export const deleteVM = async (req, res) => {
     const vm = await VirtualMachine.findByPk(req.params.id);
     if (!vm) return res.status(404).json({ message: 'VM introuvable' });
 
-    // Supprimer le répertoire terraform et envoyer email si possible
-    // On transmet l'email et le nom de la VM à destroyConfig
-    await destroyConfig(vm.tf_dir, req.user?.email || null, vm.name);
+    // Vérifie propriété
+    if (req.user.role !== 'admin' && vm.user_id !== req.user.id) {
+      return res.status(403).json({ message: 'Non autorisé' });
+    }
 
-    // Supprimer l'enregistrement DB
-    await vm.destroy();
+    // Marque comme 'deleting'
+    await vm.update({ status: 'deleting' });
 
-    return res.json({ message: 'VM supprimée' });
+    // Ajoute à la file
+    await vmQueue.add('destroy', {
+      vm: vm.toJSON(),
+      user: req.user
+    });
+
+    return res.json({ message: 'VM en cours de suppression' });
   } catch (err) {
     console.error('vm.deleteVM', err);
     return res.status(500).json({ message: 'Erreur suppression VM' });
+  }
+};
+
+// NOUVEAU: Actions sur VM
+export const actionVM = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body; // start, stop, reboot
+
+    const vm = await VirtualMachine.findByPk(id);
+    if (!vm) return res.status(404).json({ message: 'VM introuvable' });
+
+    if (req.user.role !== 'admin' && vm.user_id !== req.user.id) {
+      return res.status(403). json({ message: 'Non autorisé' });
+    }
+
+    // Vérifie que l'action est valide
+    const validActions = ['start', 'stop', 'reboot'];
+    if (!validActions.includes(action)) {
+      return res.status(400).json({ message: 'Action invalide' });
+    }
+
+    // Ajoute à la file
+    await vmQueue.add('action', {
+      vmId: vm.id,
+      action
+    });
+
+    return res.json({ message: `Action ${action} en cours` });
+  } catch (err) {
+    console.error('vm.actionVM', err);
+    return res.status(500).json({ message: 'Erreur action VM' });
   }
 };

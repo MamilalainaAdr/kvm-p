@@ -11,6 +11,15 @@ services:
       - "5432:5432"
     volumes:
       - kvmp_db:/var/lib/postgresql/data
+  redis:
+    image: redis:7-alpine
+    container_name: kvm-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
 
 volumes:
   kvmp_db:
+  redisdata:

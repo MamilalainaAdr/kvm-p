@@ -1,6 +1,7 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
+import Toaster from './components/Toaster';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -15,36 +16,36 @@ import AdminRoute from './components/AdminRoute';
 
 export default function App() {
   return (
-    <Layout>
-      <Routes>
-        {/* Public */}
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/verify-email" element={<VerifyEmail />} />
+    <>
+      <Toaster />
+      <Layout>
+        <Routes>
+          {/* Public */}
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
 
-        {/* User routes */}
-        <Route
-          path="/dashboard"
-          element={<PrivateRoute><Dashboard /></PrivateRoute>}
-        />
-        <Route
-          path="/dashboard/vms"
-          element={<PrivateRoute><VMs /></PrivateRoute>}
-        />
+          {/* User */}
+          <Route
+            path="/dashboard"
+            element={<PrivateRoute><Dashboard /></PrivateRoute>}
+          />
+          <Route
+            path="/dashboard/vms"
+            element={<PrivateRoute><VMs /></PrivateRoute>}
+          />
 
-        {/* Admin area: AdminRoute protects the whole section.
-            Navigation between "Utilisateurs" and "Machines" is handled by the sidebar.
-            /admin -> AdminUsers (index)
-            /admin/vms -> AdminVirsh */}
-        <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
-          <Route index element={<AdminUsers />} />
-          <Route path="vms" element={<AdminVirsh />} />
-        </Route>
+          {/* Admin */}
+          <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+            <Route index element={<AdminUsers />} />
+            <Route path="vms" element={<AdminVirsh />} />
+          </Route>
 
-        {/* Fallback: redirect unknown to home (or custom 404) */}
-        <Route path="*" element={<Home />} />
-      </Routes>
-    </Layout>
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Layout>
+    </>
   );
 }
