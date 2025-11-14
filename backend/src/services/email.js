@@ -7,17 +7,18 @@ const transporter = nodemailer.createTransport({
 });
 
 export const sendEmail = async (to, subject, html, attachments = []) => {
+  console.log(`[Email Service] 📤 Envoi en cours:`, { to, subject, attachments: attachments.length }); // ✅ Log envoi
   try {
     await transporter.sendMail({
       from: process.env.EMAIL_FROM,
       to,
       subject,
       html,
-      attachments  // ✅ Ajout du paramètre
+      attachments
     });
-    console.log(`✅ Email envoyé à ${to}`);
+    console.log(`✅ Email envoyé à ${to})`); // ✅ Log succès avec ID
   } catch (err) {
-    console.error('❌ Erreur envoi email:', err.message);
+    console.error('❌ Erreur envoi email:', err.message); // ✅ Log détaillé
     throw err;
   }
 };
@@ -31,29 +32,52 @@ export const sendVerificationEmail = async (user, token) => {
 };
 
 export const sendVMEmail = async (user, vm, action, sshKey = null) => {
+  
   const messages = {
     created: {
       subject: '✅ VM créée',
-      body: `
-        <h2>VM créée avec succès</h2>
-        <p><strong>Nom:</strong> ${vm.name}</p>
-        <p><strong>IP:</strong> ${vm.ip_address || 'N/A'}</p>
-        ${sshKey ? '<p>La clé SSH est jointe en pièce jointe.</p>' : '<p>Aucune clé SSH générée.</p>'}
+      html: `
+        <h2>Machine virtuelle créée</h2>
+        <p>Votre VM est maintenant opérationnelle 🎉</p>
+        <p><b>Nom :</b> ${vm.name}</p>
+        <p><b>Adresse IP :</b> ${vm.ip_address || 'N/A'}</p>
+        ${
+          sshKey
+            ? '<p>La clé privée SSH est jointe en pièce jointe.</p>'
+            : '<p>Aucune clé SSH n’a été générée.</p>'
+        }
       `
     },
+
     deleted: {
       subject: '🗑️ VM supprimée',
-      body: `<p>La VM ${vm.name} a été supprimée.</p>`
+      html: `
+        <h2>Machine virtuelle supprimée</h2>
+        <p>La VM <b>${vm.name}</b> a bien été supprimée.</p>
+      `
     }
   };
 
   const msg = messages[action];
 
-  // ✅ Passer les attachments
-  await sendEmail(user.email, msg.subject, msg.body, sshKey ? [{
-    filename: `${vm.name}-ssh-key.pem`,
-    content: sshKey,
-    contentType: 'application/x-pem-file',
-    contentDisposition: 'attachment'
-  }] : []);
+  console.log(
+    `[Email Service] Préparation email: action=${action}, vm=${vm?.name}, sshKey=${!!sshKey}`
+  );
+
+  // 👉 Construction sécurisée des attachments
+  const attachments = sshKey
+    ? [
+        {
+          filename: `${vm.name}-ssh-key.pem`,
+          content: sshKey,
+          contentType: 'application/x-pem-file',
+          contentDisposition: 'attachment'
+        }
+      ]
+    : [];
+
+  console.log(`[Email Service] Attachments: ${attachments.length}`);
+
+  // 👉 Envoi
+  await sendEmail(user.email, msg.subject, msg.html, attachments);
 };

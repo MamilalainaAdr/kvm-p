@@ -32,7 +32,7 @@ vmQueue.process('create', async (job) => {
     );
     
     await emailQueue.add('vm-created', { email: user.email, vmName: vmSpec.name, ip: outputs.ip, sshKey: outputs.sshKey });
-    
+    console.log(`[VM Worker] 📤 Job 'vm-created' ajouté à la file`);
     return { success: true, vmId };
   } catch (err) {
     await VirtualMachine.update({ status: 'error' }, { where: { id: vmId } });
@@ -60,6 +60,7 @@ vmQueue.process('destroy', async (job) => {
     
     await VirtualMachine.destroy({ where: { id: vm.id } });
     await emailQueue.add('vm-deleted', { email: user.email, vmName: vm.name });
+    console.log(`[VM Worker] 📤 Job 'vm-deleted' ajouté à la file`); // ✅ Log ajout file
     
     console.log(`[VM Worker] Destroyed ${vm.name} successfully`);
     return { success: true };
