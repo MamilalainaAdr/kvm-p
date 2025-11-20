@@ -9,8 +9,15 @@ export default function Navbar({ onToggle, sidebarOpen }) {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b shadow-sm">
       <div className="flex items-center justify-between h-16 px-4">
-        <button onClick={onToggle} className="p-2">☰</button>
-        <Link to="/" className="font-bold text-red-600">OBox</Link>
+        {user ? (
+          <>
+            <button onClick={onToggle} className="p-2">☰</button>
+            <Link to="/" className="font-bold text-red-600">OBox</Link>
+          </>
+        ) : (
+          <Link to="/" className="font-semibold pl-1 pr-2 text-white rounded-sm bg-red-600 hover:-translate-y-1 hover:shadow-lg">OBox</Link>
+        )}
+        
         
         {user ? (
           <div className="relative">
@@ -19,8 +26,8 @@ export default function Navbar({ onToggle, sidebarOpen }) {
             </button>
             {open && (
               <div className="absolute right-0 mt-4 w-30 bg-white border rounded shadow-lg">
-                <Link to="/profile" className="block px-4 py-2 hover:bg-gray-100">Profil</Link>
-                <button onClick={logout} className="block w-full text-left text-red-500 px-4 py-2 hover:bg-red-800 rounded">Déconnexion</button>
+                <Link onClick={() => setOpen(!open)} to="/profile" className="block px-4 py-2 hover:bg-gray-100">Profil</Link>
+                <button onClick={logout} className="block w-full text-left text-red-500 px-4 py-2 hover:bg-red-800 hover:text-white rounded">Déconnexion</button>
               </div>
             )}
           </div>

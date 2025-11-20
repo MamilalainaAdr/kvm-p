@@ -4,14 +4,11 @@ import { useAuth } from '../context/AuthContext';
 
 export default function UserMonitoring() {
   const [vmStats, setVmStats] = useState({ vms: [], total: 0 });
-  const [debug, setDebug] = useState('');
   const { user } = useAuth();
 
   useEffect(() => {
     if (!user) return;
 
-    setDebug('Connexion...');
-    
     const socket = io('http://localhost:4000', {
       withCredentials: true,
       auth: { token: localStorage.getItem('token') },
@@ -19,29 +16,24 @@ export default function UserMonitoring() {
     });
 
     socket.on('connect', () => {
-      setDebug('✅ Connecté, abonnement...');
       socket.emit('subscribe-vms', user.id);
     });
 
     socket.on('vm-stats', (stats) => {
       console.log('[UserMonitoring] Stats reçues:', stats);
-      setDebug(`Stats reçues: ${stats.total} VMs`);
       setVmStats(stats);
     });
 
     socket.on('error', (err) => {
-      setDebug(`❌ Erreur: ${err.message}`);
       fetchVMStatsREST();
     });
 
     socket.on('connect_error', (err) => {
-      setDebug(`❌ Connexion échouée: ${err.message}`);
       fetchVMStatsREST();
     });
 
     const timeout = setTimeout(() => {
       if (vmStats.total === 0) {
-        setDebug('⏰ Timeout → Fallback REST');
         fetchVMStatsREST();
       }
     }, 3000);
@@ -54,7 +46,6 @@ export default function UserMonitoring() {
 
   // ✅ FIX: URL relative
   const fetchVMStatsREST = async () => {
-    setDebug('🔄 Fallback REST...');
     try {
       const res = await fetch('/api/monitoring/vms', { // ✅ URL relative
         credentials: 'include',
@@ -64,11 +55,9 @@ export default function UserMonitoring() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       
       const stats = await res.json();
-      setDebug('✅ REST OK');
       setVmStats(stats);
     } catch (err) {
       console.error('[UserMonitoring] REST échoué:', err);
-      setDebug(`❌ REST échoué: ${err.message}`);
       setVmStats({ vms: [], total: 0, error: err.message });
     }
   };
@@ -77,16 +66,14 @@ export default function UserMonitoring() {
     return (
       <div className="mt-4 p-4 bg-red-100 text-red-700 rounded">
         Erreur: {vmStats.error}
-        <div className="text-xs mt-2">{debug}</div>
       </div>
     );
   }
 
   return (
-    <div className="mt-6">
+    <div className="bg-white p-6 rounded shadow mt-6">
       <h2 className="text-xl font-bold mb-4 flex justify-between">
-        Mes Machines Virtuelles ({vmStats.total})
-        <span className="text-xs font-normal text-gray-500">{debug}</span>
+        Mes Machines ({vmStats.total})
       </h2>
       
       {vmStats.total === 0 ? (

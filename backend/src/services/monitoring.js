@@ -40,7 +40,6 @@ export async function getSystemStats() {
       }
     };
 
-    console.log('[Monitoring] Stats collectées:', stats);
     return stats;
   } catch (err) {
     console.error('[Monitoring] Erreur collecte:', err.message);

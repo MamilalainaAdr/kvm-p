@@ -12,7 +12,7 @@ export default function Sidebar({ open }) {
         </NavLink>
         {user?.role === 'admin' ? (
           <>
-            <NavLink to="/admin/users" className={({ isActive }) => `block p-2 rounded ${isActive ? 'bg-slate-100 font-semibold' : ''}`}>
+            <NavLink to="/admin/users"  className={({ isActive }) => `block p-2 rounded  ${isActive ? 'bg-slate-100 font-semibold ' : ''}`}>
               Utilisateurs
             </NavLink>
             <NavLink to="/admin/vms" className={({ isActive }) => `block p-2 rounded ${isActive ? 'bg-slate-100 font-semibold' : ''}`}>

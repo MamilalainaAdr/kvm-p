@@ -4,13 +4,10 @@ import { useAuth } from '../context/AuthContext';
 
 export default function AdminMonitoring() {
   const [systemStats, setSystemStats] = useState(null);
-  const [debug, setDebug] = useState(''); // ✅ Pour diagnostic
   const { user } = useAuth();
 
   useEffect(() => {
     if (!user || user.role !== 'admin') return;
-
-    setDebug('Connexion Socket.io...');
     
     const socket = io('/', {
       withCredentials: true,
@@ -19,24 +16,20 @@ export default function AdminMonitoring() {
     });
 
     socket.on('connect', () => {
-      setDebug('✅ Connecté, abonnement...');
       socket.emit('subscribe-system');
     });
 
     socket.on('system-stats', (stats) => {
       console.log('[AdminMonitoring] Stats reçues:', stats);
-      setDebug(`Stats reçues: ${JSON.stringify(stats)}`);
       setSystemStats(stats);
     });
 
     socket.on('error', (err) => {
-      setDebug(`❌ Erreur socket: ${err.message}`);
       // Fallback immédiat si socket échoue
       fetchStatsREST();
     });
 
     socket.on('connect_error', (err) => {
-      setDebug(`❌ Connexion échouée: ${err.message} → Fallback REST`);
       fetchStatsREST();
     });
 
@@ -48,7 +41,6 @@ export default function AdminMonitoring() {
 
   // ✅ FIX: URL relative pour passer par le proxy Vite
   const fetchStatsREST = async () => {
-    setDebug('🔄 Tentative fallback REST...');
     try {
       const res = await fetch('/api/monitoring/system', {
         credentials: 'include',
@@ -59,11 +51,9 @@ export default function AdminMonitoring() {
       
       const stats = await res.json();
       console.log('[AdminMonitoring] Stats REST reçues:', stats);
-      setDebug('✅ Fallback REST OK');
       setSystemStats(stats);
     } catch (err) {
       console.error('[AdminMonitoring] Fallback REST échoué:', err);
-      setDebug(`❌ REST échoué: ${err.message}`);
       setSystemStats({ error: 'REST fallback failed' });
     }
   };
@@ -72,7 +62,6 @@ export default function AdminMonitoring() {
     return (
       <div className="mt-4 p-4 bg-gray-100 rounded">
         Chargement stats...
-        <div className="text-xs text-gray-500 mt-2">{debug}</div>
       </div>
     );
   }
@@ -81,16 +70,14 @@ export default function AdminMonitoring() {
     return (
       <div className="mt-4 p-4 bg-red-100 text-red-700 rounded">
         Erreur: {systemStats.error}
-        <div className="text-xs mt-2">{debug}</div>
       </div>
     );
   }
 
   return (
-    <div className="mt-6 space-y-4">
+    <div className=" bg-white p-4 rounded shadow mt-6 space-y-4">
       <h2 className="text-xl font-bold flex justify-between">
         Informations sur le système
-        <span className="text-xs font-normal text-gray-500">{debug}</span>
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-slate-50 p-4 rounded">

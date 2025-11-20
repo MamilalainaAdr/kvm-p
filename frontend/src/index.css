@@ -11,12 +11,5 @@ body {
 
 html, body, #root {
   height: 100%;
-}
-
-/* card helper */
-.card {
-  @apply bg-white rounded shadow-sm p-4;
-}
-.kv-title {
-  @apply text-lg font-semibold text-slate-700;
+  overflow: hidden;
 }
