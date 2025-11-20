@@ -24,9 +24,11 @@ export const generateConfig = async (userName, vmSpec) => {
   content = content
     .replace(/name\s*=\s*".*"/, `name = "${safeName}"`)
     .replace(/volume_name\s*=\s*".*"/, `volume_name = "${safeName}.qcow2"`)
-    .replace(/image_path\s*=\s*".*"/, `image_path = "./images/${vmSpec.os_type}/${vmSpec.version}.${vmSpec.ext}"`)
     .replace(/vcpu\s*=\s*\d+/, `vcpu = ${vmSpec.vcpu}`)
     .replace(/memory\s*=\s*\d+/, `memory = ${vmSpec.memory}`)
+    .replace(/init_iso\s*=\s*".*"/, `init_iso = "${safeName}.iso"`)
+    .replace(/image_path\s*=\s*".*"/, `image_path = "./images/${vmSpec.os_type}/${vmSpec.version}.${vmSpec.ext}"`)
+    .replace(/final_disk_name\s*=\s*".*"/, `final_disk_name = "final-${safeName}.qcow2"`)
     .replace(/disk_size\s*=\s*\d+/, `disk_size = ${vmSpec.disk_size}`)
     .replace(/username\s*=\s*".*"/, `username = "${userName}"`);
   

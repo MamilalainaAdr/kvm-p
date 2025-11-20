@@ -2,7 +2,7 @@ import express from 'express';
 import { body, validationResult } from 'express-validator';
 import { requireAuth } from '../middlewares/auth.js';
 import { VirtualMachine } from '../models/index.js';
-import { vmQueue } from '../services/queue.js';
+import { vmQueue, PRIORITIES } from '../services/queue.js';
 
 const router = express.Router();
 
@@ -42,7 +42,10 @@ router.post('/',
       user_id: req.user.id, name, os_type, version, vcpu, memory, disk_size, status: 'pending'
     });
     
-    await vmQueue.add('create', { user: req.user, vmSpec: { name, os_type, version, vcpu, memory, disk_size, ext }, vmId: vm.id });
+    await vmQueue.add('create', 
+      { user: req.user, vmSpec: { name, os_type, version, vcpu, memory, disk_size, ext }, vmId: vm.id },
+      { priority: PRIORITIES.HIGH }
+    );
     
     res.status(202).json({ message: 'VM en création', vm: { id: vm.id, name, status: 'pending' } });
   }
@@ -55,7 +58,10 @@ router.delete('/:id', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin' && vm.user_id !== req.user.id) return res.status(403).json({ message: 'Non autorisé' });
   
   await vm.update({ status: 'deleting' });
-  await vmQueue.add('destroy', { vm: vm.toJSON(), user: req.user });
+  await vmQueue.add('destroy', 
+    { vm: vm.toJSON(), user: req.user }, 
+    { priority: PRIORITIES.CRITICAL }
+  );
   
   res.json({ message: 'VM en suppression' });
 });
@@ -69,7 +75,10 @@ router.post('/:id/action', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin' && vm.user_id !== req.user.id) return res.status(403).json({ message: 'Non autorisé' });
   if (!['start', 'stop', 'reboot'].includes(action)) return res.status(400).json({ message: 'Action invalide' });
   
-  await vmQueue.add('action', { vmId: vm.id, action, username: req.user.name });
+  await vmQueue.add('action', 
+    { vmId: vm.id, action, username: req.user.name }, 
+    { priority: PRIORITIES.HIGH} 
+  );
   res.json({ message: `Action ${action} en cours` });
 });
 

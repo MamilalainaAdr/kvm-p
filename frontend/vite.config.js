@@ -9,7 +9,13 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:4000',
         changeOrigin: true,
-        secure: false
+        secure: false,
+        ws: true // websocket
+      },
+      '/socket.io': {  // ✅ Proxy spécifique pour Socket.io
+        target: 'http://localhost:4000',
+        ws: true,
+        changeOrigin: true
       }
     }
   }

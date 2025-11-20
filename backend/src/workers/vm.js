@@ -4,8 +4,12 @@ import { vmQueue, emailQueue } from '../services/queue.js';
 import * as terraform from '../services/terraform.js';
 import * as virsh from '../services/virsh.js';
 import { VirtualMachine } from '../models/index.js';
+import { User } from '../models/index.js';
 import fs from 'fs-extra';
 import path from 'path';
+
+let lastSyncRun = 0;
+const MIN_SYNC_INTERVAL = 4 * 60 * 1000; // 4 minutes minimum
 
 // Handler CRÉATION
 vmQueue.process('create', async (job) => {
@@ -104,21 +108,92 @@ vmQueue.process('action', async (job) => {
 });
 
 // Handler SYNC ÉTAT
+// ✅ Handler SYNC ÉTAT avec protection
 vmQueue.process('sync-state', async () => {
-  const vms = await VirtualMachine.findAll({ where: { status: ['running', 'stopped', 'paused', 'error'] } });
+  const now = Date.now();
+  
+  // Vérification anti-spam
+  if (now - lastSyncRun < MIN_SYNC_INTERVAL) {
+    const seconds = Math.round((now - lastSyncRun) / 1000);
+    console.warn(`[Sync] ⏭️  Ignoré - Dernier run il y a ${seconds}s (min: ${MIN_SYNC_INTERVAL/1000}s)`);
+    return { skipped: true, reason: 'Too frequent' };
+  }
+  
+  lastSyncRun = now;
+  console.log(`[Sync] 🔄 Démarrage sync à ${new Date().toISOString()}`);
+  
+  const vms = await VirtualMachine.findAll({ 
+    where: { status: ['running', 'stopped', 'paused', 'error'] } 
+  });
+  
+  let updated = 0, skipped = 0, errors = 0;
   
   for (const vm of vms) {
     try {
-      const user = await vm.getUser();
-      const fullName = `${user.name}-${vm.name}`;
+      const user = await User.findByPk(vm.user_id);
+      if (!user) {
+        console.warn(`[Sync] User ${vm.user_id} introuvable pour VM ${vm.id}`);
+        skipped++;
+        continue;
+      }
+      
+      const fullName = vm.full_name;
+      if (!fullName) {
+        console.warn(`[Sync] VM ${vm.id} (${vm.name}) n'a pas de full_name`);
+        skipped++;
+        continue;
+      }
+      
       const realState = await virsh.getVMState(fullName);
       
-      if (realState !== vm.status && realState !== 'unknown') {
-        await vm.update({ status: realState });
-        console.log(`[Sync] ${vm.name}: ${vm.status} → ${realState}`);
+      if (realState === 'unknown') {
+        console.warn(`[Sync] VM ${fullName} introuvable dans libvirt`);
+        skipped++;
+        continue;
       }
+      
+      if (realState !== vm.status) {
+        await vm.update({ status: realState });
+        console.log(`[Sync] ✅ ${fullName}: ${vm.status} → ${realState}`);
+        updated++;
+      } else {
+        console.log(`[Sync] ⏭️  ${fullName}: ${vm.status} (inchangé)`);
+        skipped++;
+      }
+      
     } catch (err) {
-      console.error(`[Sync] Error on ${vm.name}:`, err.message);
+      console.error(`[Sync] ❌ Erreur VM ${vm.id}:`, err.message);
+      errors++;
+    }
+  }
+  
+  console.log(`[Sync] 📊 Résultat: ${updated} maj, ${skipped} ignorées, ${errors} erreurs`);
+  return { updated, skipped, errors, total: vms.length };
+});
+
+
+// Handler DESTROY BY USER DELETE
+vmQueue.process('destroy-user-vms', async (job) => {
+  const { userId } = job.data;
+  const user = await User.findByPk(userId, { include: VirtualMachine });
+  
+  console.log(`[VM Worker] Suppression CASCADE pour user ${user.name} (${user.VirtualMachines.length} VMs)`);
+  
+  for (const vm of user.VirtualMachines) {
+    try {
+      console.log(`[VM Worker] Destroy VM ${vm.name} (${vm.full_name})`);
+      
+      if (vm.tf_dir) {
+        await terraform.destroyConfig(vm.tf_dir);
+      } else if (vm.full_name) {
+        await virsh.forceStopVM(vm.full_name);
+      }
+      
+      await vm.destroy(); // ✅ Supprime immédiatement de la DB
+      await emailQueue.add('vm-deleted', { email: user.email, vmName: vm.name });
+    } catch (err) {
+      console.error(`[VM Worker] Erreur destruction ${vm.name}:`, err);
+      // Ne pas throw, continuer sur les autres VMs
     }
   }
 });
