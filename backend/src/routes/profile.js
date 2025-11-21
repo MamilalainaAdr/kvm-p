@@ -56,41 +56,4 @@ router.put('/password', requireAuth, validate,
   }
 );
 
-// Reset password request
-router.post('/reset-password-request', validate,
-  body('email').isEmail(),
-  async (req, res) => {
-    const { email } = req.body;
-    const user = await User.findOne({ where: { email } });
-    if (!user) return res.status(404).json({ message: 'Email non trouvé' });
-
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    const resetUrl = `${process.env.CORS_ORIGIN}/reset-password?token=${token}`;
-
-    await sendEmail(user.email, 'Réinitialisation mot de passe', `
-      <p>Bonjour ${user.name},</p>
-      <p>Cliquez pour réinitialiser : <a href="${resetUrl}">${resetUrl}</a></p>
-    `);
-
-    res.json({ message: 'Email de réinitialisation envoyé' });
-  }
-);
-
-// Reset password with token
-router.post('/reset-password', validate,
-  body('token').notEmpty(),
-  body('newPassword').isLength({ min: 6 }),
-  async (req, res) => {
-    const { token, newPassword } = req.body;
-    const { id } = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findByPk(id);
-    if (!user) return res.status(404).json({ message: 'Token invalide' });
-
-    user.password = await bcrypt.hash(newPassword, 10);
-    await user.save();
-
-    res.json({ message: 'Mot de passe réinitialisé' });
-  }
-);
-
 export default router;

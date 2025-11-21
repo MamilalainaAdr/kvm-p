@@ -10,9 +10,6 @@ export default function Layout({ children }) {
   const location = useLocation();
   const { user } = useAuth();
   
-  const noLayout = ['/verify-email', '/reset-password'];
-  if (noLayout.includes(location.pathname)) return <>{children}</>;
-
   return (
     <div className={`min-h-screen bg-center bg-no-repeat ${
         user ? 'bg-slate-50' : 'bg-cover'
