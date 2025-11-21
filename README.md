@@ -1,4 +1,4 @@
-# 📦 OBox - KVM Cloud Manager
+# 📦 OBox - KVM Server Manager
 
 > **MVP** - Gestionnaire de machines virtuelles KVM avec système de queue, monitoring temps réel et administration complète.
 
@@ -153,12 +153,11 @@ npx nodemon src/workers/monitoring.js
 
 ### Monitoring & Performance
 - **Zero overhead** : Pas de service supplémentaire, commandes shell directes
-- **Connexions persistantes** : 1 WebSocket par client vs N requêtes HTTP polling
 - **Fallback** : Si Socket.io échoue, les stats sont disponibles via API REST (routes `/monitoring`)
 
 ---
 
-## 🛡️ Sécurité (MVP Ready)
+## 🛡️ Sécurité (MVP)
 
 - **JWT HttpOnly cookies** sur `/api/auth/*`
 - **RBAC** : Middleware `requireAdmin` protège toutes les routes admin
