@@ -32,15 +32,15 @@ export default function Register() {
     <div className="w-full min-h-screen flex items-start justify-center">
       
       {/* Conteneur principal identique Home */}
-      <div className="flex flex-1 mt-52 flex-col md:flex-row items-center justify-between w-full h-full px-6 md:px-16 lg:px-24">
+      <div className="flex flex-1 mt-52 flex-col md:flex-row items-center justify-start gap-x-20 w-full h-full px-6 md:px-16 lg:px-24">
 
         {/* --- PARTIE GAUCHE IDENTIQUE À HOME --- */}
         <div className="hidden md:flex flex-col justify-center space-y-8 text-left w-full md:w-1/2">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-800 leading-tight">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-600 leading-tight">
             Facile, <br /> complète <br /> et personnalisée
           </h1>
 
-          <p className="text-gray-600 text-lg md:text-xl">
+          <p className="text-gray-700 text-lg md:text-xl">
             Gérez vos machines simplement avec{' '}
             <span className="font-semibold text-red-600">OBox</span>.
           </p>
@@ -48,8 +48,8 @@ export default function Register() {
 
         {/* --- FORMULAIRE REGISTER À DROITE --- */}
         <div className="w-full md:w-1/2 flex justify-center mt-10 md:mt-0 jump">
-          <div className="w-full max-w-md bg-white p-6 rounded-2xl shadow-lg">
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">Créer un compte</h2>
+          <div className="w-full max-w-md bg-white p-8 rounded-xl shadow">
+            <h2 className="text-2xl text-center font-bold mb-4 text-gray-800">Inscription</h2>
 
             {message && <div className="mb-4 text-green-600">{message}</div>}
 
@@ -88,7 +88,7 @@ export default function Register() {
               </button>
             </form>
 
-            <div className="mt-4 text-center">
+            <div className="mt-6 mb-10 text-center">
               <p className="text-sm text-gray-600">
                 Vous avez déjà un compte ?{' '}
                 <Link

@@ -4,7 +4,7 @@ export default function Home() {
   return (
     <div className="w-full min-h-screen flex items-start justify-center">
       {/* Section principale plein écran */}
-      <div className="flex flex-1 mt-52 flex-col md:flex-row items-center justify-between w-full h-full px-6 md:px-16 lg:px-24">
+      <div className="flex flex-1 mt-52 flex-col md:flex-row items-center justify-start gap-x-20 w-full h-full px-6 md:px-16 lg:px-24">
         
       {/* --- Texte à gauche --- */}
       <div className="flex flex-col justify-center space-y-8 text-left w-full md:w-1/2">
