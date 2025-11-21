@@ -80,23 +80,23 @@ export default function AdminMonitoring() {
         Informations sur le système
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-slate-50 p-4 rounded">
+        <div className="bg-slate-100 p-4 rounded">
           <h3 className="font-semibold text-slate-700">CPU Hôte</h3>
           <p className="text-2xl font-bold text-blue-600">{systemStats.system?.cpuUsage ?? 'N/A'}%</p>
         </div>
-        <div className="bg-slate-50 p-4 rounded">
+        <div className="bg-slate-100 p-4 rounded">
           <h3 className="font-semibold text-slate-700">RAM Hôte</h3>
           <p className="text-2xl font-bold text-green-600">{systemStats.system?.memoryUsage ?? 'N/A'}%</p>
         </div>
-        <div className="bg-slate-50 p-4 rounded">
+        <div className="bg-slate-100 p-4 rounded">
           <h3 className="font-semibold text-slate-700">Disque Hôte</h3>
           <p className="text-2xl font-bold text-yellow-600">{systemStats.system?.diskUsage ?? 'N/A'}%</p>
         </div>
-        <div className="bg-slate-50 p-4 rounded">
+        <div className="bg-slate-100 p-4 rounded">
           <h3 className="font-semibold text-slate-700">VMs Actives</h3>
           <p className="text-2xl font-bold text-purple-600">{systemStats.system?.activeVMs ?? 0}</p>
         </div>
-        <div className="bg-slate-50 p-4 rounded">
+        <div className="bg-slate-100 p-4 rounded">
           <h3 className="font-semibold text-slate-700">RAM Libvirt</h3>
           <p className="text-2xl font-bold text-red-600">{systemStats.libvirt?.memoryMB ?? 0} MB</p>
         </div>

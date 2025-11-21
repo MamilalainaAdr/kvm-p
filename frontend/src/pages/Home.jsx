@@ -2,9 +2,9 @@ import { Link } from 'react-router-dom';
 import logo from '../assets/logo-transparent.png';
 export default function Home() {
   return (
-    <div className="w-full min-h-screen flex items-center justify-center">
+    <div className="w-full min-h-screen flex items-start justify-center">
       {/* Section principale plein écran */}
-      <div className="flex flex-1 flex-col md:flex-row items-center justify-between w-full h-full px-6 md:px-16 lg:px-24">
+      <div className="flex flex-1 mt-52 flex-col md:flex-row items-center justify-between w-full h-full px-6 md:px-16 lg:px-24">
         
       {/* --- Texte à gauche --- */}
       <div className="flex flex-col justify-center space-y-8 text-left w-full md:w-1/2">
@@ -26,12 +26,17 @@ export default function Home() {
       </div>
 
       {/* --- Image/logo à droite --- */}
-      <div className="flex justify-center items-center w-full md:w-1/2 mt-10 md:mt-0">
-        <img
-          src={logo}
-          alt="OBox Logo"
-          className="home-logo hidden sm:block object-contain w-[70%] md:w-[90%] max-w-3xl hover:scale-105 transition-transform duration-700 ease-in-out"
-        />
+      <div className="hidden md:flex justify-center items-center w-full md:w-1/2 mt-10 md:mt-0">
+        <div className="relative w-[70%] md:w-[90%] max-w-3xl">
+          <img
+            src={logo}
+            alt="OBox Logo"
+            className="w-full object-contain hover:scale-105 logo-loop"
+          />
+
+          {/* Bordure floutée en bas de l'image seulement */}
+          <div className="absolute -bottom-3 left-0 w-full h-1 bg-slate-400 blur-sm"></div>
+        </div>
       </div>
     </div>
     </div>

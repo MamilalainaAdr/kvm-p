@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import API from '../services/api';
 
@@ -29,19 +29,80 @@ export default function Register() {
   if (!loading && user) return null;
 
   return (
-    <div className="max-w-md mx-auto mt-8 bg-white p-6 rounded shadow">
-      <h2 className="text-xl font-bold mb-4">S'inscrire</h2>
-      {message && <div className="mb-4 text-green-600">{message}</div>}
-      <form onSubmit={submit} className="space-y-4">
-        <input placeholder="Nom" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border rounded" required />
-        <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-2 border rounded" required />
-        <input type="password" placeholder="Mot de passe" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-2 border rounded" required />
-        <button type="submit" className="w-full bg-green-600 text-white p-2 rounded hover:bg-green-700">S'inscrire</button>
-      </form>
-      <div className='mt-4 text-center'>
-        <p className='text-sm text-gray-600'>Vous avez déjà un compte? <a className='text-sm text-blue-600 hover:text-blue-800 ' href="/login">Se connecter</a></p>
-      </div>
+    <div className="w-full min-h-screen flex items-start justify-center">
       
+      {/* Conteneur principal identique Home */}
+      <div className="flex flex-1 mt-52 flex-col md:flex-row items-center justify-between w-full h-full px-6 md:px-16 lg:px-24">
+
+        {/* --- PARTIE GAUCHE IDENTIQUE À HOME --- */}
+        <div className="hidden md:flex flex-col justify-center space-y-8 text-left w-full md:w-1/2">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-800 leading-tight">
+            Facile, <br /> complète <br /> et personnalisée
+          </h1>
+
+          <p className="text-gray-600 text-lg md:text-xl">
+            Gérez vos machines simplement avec{' '}
+            <span className="font-semibold text-red-600">OBox</span>.
+          </p>
+        </div>
+
+        {/* --- FORMULAIRE REGISTER À DROITE --- */}
+        <div className="w-full md:w-1/2 flex justify-center mt-10 md:mt-0 jump">
+          <div className="w-full max-w-md bg-white p-6 rounded-2xl shadow-lg">
+            <h2 className="text-2xl font-bold mb-4 text-gray-800">Créer un compte</h2>
+
+            {message && <div className="mb-4 text-green-600">{message}</div>}
+
+            <form onSubmit={submit} className="space-y-4">
+              <input
+                placeholder="Nom"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
+                required
+              />
+
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
+                required
+              />
+
+              <input
+                type="password"
+                placeholder="Mot de passe"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
+                required
+              />
+
+              <button
+                type="submit"
+                className="w-full bg-orange-600 text-white p-3 rounded-lg font-semibold hover:bg-orange-700 shadow-md transition"
+              >
+                S'inscrire
+              </button>
+            </form>
+
+            <div className="mt-4 text-center">
+              <p className="text-sm text-gray-600">
+                Vous avez déjà un compte ?{' '}
+                <Link
+                  className="text-sm underline text-orange-600 hover:text-orange-800"
+                  to="/login"
+                >
+                  Se connecter
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }
