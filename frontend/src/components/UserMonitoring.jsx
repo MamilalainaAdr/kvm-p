@@ -9,7 +9,7 @@ export default function UserMonitoring() {
   useEffect(() => {
     if (!user) return;
 
-    const socket = io('http://localhost:4000', {
+    const socket = io({
       withCredentials: true,
       auth: { token: localStorage.getItem('token') },
       transports: ['websocket', 'polling']
@@ -24,14 +24,6 @@ export default function UserMonitoring() {
       setVmStats(stats);
     });
 
-    socket.on('error', (err) => {
-      fetchVMStatsREST();
-    });
-
-    socket.on('connect_error', (err) => {
-      fetchVMStatsREST();
-    });
-
     const timeout = setTimeout(() => {
       if (vmStats.total === 0) {
         fetchVMStatsREST();
@@ -44,10 +36,9 @@ export default function UserMonitoring() {
     };
   }, [user?.id]);
 
-  // ✅ FIX: URL relative
   const fetchVMStatsREST = async () => {
     try {
-      const res = await fetch('/api/monitoring/vms', { // ✅ URL relative
+      const res = await fetch('/api/monitoring/vms', {
         credentials: 'include',
         headers: { 'Accept': 'application/json' }
       });
@@ -73,17 +64,17 @@ export default function UserMonitoring() {
   return (
     <div className="bg-white p-6 rounded shadow mt-6">
       <h2 className="text-xl font-bold mb-4 flex justify-between">
-        Mes Machines ({vmStats.total})
+        Machines ({vmStats.total})
       </h2>
       
       {vmStats.total === 0 ? (
         <div className="bg-slate-50 p-6 rounded text-center text-slate-500">
-          Aucune VM créée. <a href="/vms" className="text-blue-600 hover:underline">Créer ma première VM</a>
+          Aucune VM trouvée.
         </div>
       ) : (
         <div className="space-y-3">
           {vmStats.vms.map(vm => (
-            <div key={vm.id} className="bg-slate-50 p-4 rounded flex justify-between items-center">
+            <div key={vm.id} className="bg-slate-100 p-4 rounded flex justify-between items-center">
               <div>
                 <h3 className="font-semibold text-slate-800">{vm.name}</h3>
                 <p className="text-sm text-slate-600">IP: {vm.ip_address || 'N/A'}</p>

@@ -8,7 +8,12 @@ export default function Dashboard() {
     <div className="p-6">
       <p>Bienvenue, <em><b className='text-slate-700'>{user?.name}</b></em></p>
 
-      {user?.role === 'admin' ? <AdminMonitoring /> : <UserMonitoring />}
+      {user?.role === 'admin' ? (
+        <>
+          <AdminMonitoring />
+          <UserMonitoring/>
+        </>
+        ) : (<UserMonitoring />)}
     </div>
   );
 }

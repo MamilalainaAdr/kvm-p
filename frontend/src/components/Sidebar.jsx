@@ -7,9 +7,12 @@ export default function Sidebar({ open }) {
   const linkClasses = (isActive) =>
     `flex items-center p-2 border-l-4 ${
       isActive
-        ? 'border-yellow-500 bg-slate-100 font-semibold' // actif : bordure colorée + fond + texte en gras
-        : 'border-transparent hover:bg-slate-50' // inactif : bordure transparente + hover
+        ? 'border-yellow-500 bg-slate-100 font-semibold'
+        : 'border-transparent hover:bg-slate-50'
     }`;
+
+  // NE PAS afficher si non connecté
+  if (!user) return null;
 
   return (
     <aside

@@ -11,6 +11,7 @@ export default function Toaster() {
           color: '#1f2937',
           boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
           fontFamily: 'Inter, ui-sans-serif',
+          borderLeft: '4px solid #3b82f6',
         },
         success: { 
           iconTheme: { primary: '#10b981', secondary: '#fff' },

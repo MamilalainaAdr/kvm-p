@@ -11,8 +11,15 @@ import path from 'path';
 let lastSyncRun = 0;
 const MIN_SYNC_INTERVAL = 4 * 60 * 1000; // 4 minutes minimum
 
+setInterval(async () => {
+  const waiting = await vmQueue.getWaiting();
+  const active = await vmQueue.getActive();
+  console.log(`[VM Worker] Jobs - Waiting: ${waiting.length}, Active: ${active.length}`);
+}, 30000);
+
 // Handler CRÉATION
 vmQueue.process('create', async (job) => {
+  console.log(`[VM Worker] 📥 Job CREATE reçu:`, job.id);
   const { user, vmSpec, vmId } = job.data;
   
   try {
@@ -46,6 +53,7 @@ vmQueue.process('create', async (job) => {
 
 // Handler DESTRUCTION (✅ AJOUTER SI MANQUANT)
 vmQueue.process('destroy', async (job) => {
+  console.log(`[VM Worker] 📥 Job DESTROY reçu:`, job.id);
   const { vm, user } = job.data;
   
   // ✅ Utiliser le full_name STOCKÉ
@@ -76,6 +84,7 @@ vmQueue.process('destroy', async (job) => {
 
 // Handler ACTIONS (start/stop/reboot)
 vmQueue.process('action', async (job) => {
+  console.log(`[VM Worker] 📥 Job ACTION reçu:`, job.id);
   const { vmId, action } = job.data;
   const vm = await VirtualMachine.findByPk(vmId);
   if (!vm) throw new Error('VM not found');
@@ -109,55 +118,61 @@ vmQueue.process('action', async (job) => {
 
 // Handler SYNC ÉTAT
 // ✅ Handler SYNC ÉTAT avec protection
-vmQueue.process('sync-state', async () => {
+vmQueue.process('sync-state', async (job) => {
   const now = Date.now();
   
   // Vérification anti-spam
   if (now - lastSyncRun < MIN_SYNC_INTERVAL) {
     const seconds = Math.round((now - lastSyncRun) / 1000);
-    console.warn(`[Sync] ⏭️  Ignoré - Dernier run il y a ${seconds}s (min: ${MIN_SYNC_INTERVAL/1000}s)`);
-    return { skipped: true, reason: 'Too frequent' };
+    const msg = `[Sync] ⏭️  IGNORÉ - Dernier run il y a ${seconds}s (min: ${MIN_SYNC_INTERVAL/1000}s)`;
+    console.log(msg);
+    return { skipped: true, reason: 'Too frequent', message: msg };
   }
   
   lastSyncRun = now;
-  console.log(`[Sync] 🔄 Démarrage sync à ${new Date().toISOString()}`);
+  console.log(`\n========== [Sync] 🔄 DÉBUT SYNC ${new Date().toISOString()} ==========`);
   
   const vms = await VirtualMachine.findAll({ 
-    where: { status: ['running', 'stopped', 'paused', 'error'] } 
+    where: { status: ['running', 'stopped', 'paused', 'error', 'shut off'] } 
   });
+  
+  console.log(`[Sync] 📊 ${vms.length} VMs à vérifier dans la base`);
   
   let updated = 0, skipped = 0, errors = 0;
   
   for (const vm of vms) {
     try {
-      const user = await User.findByPk(vm.user_id);
-      if (!user) {
-        console.warn(`[Sync] User ${vm.user_id} introuvable pour VM ${vm.id}`);
+      console.log(`\n[Sync] 🔍 Vérification VM ${vm.id}: ${vm.name} (full_name: ${vm.full_name})`);
+      
+      if (!vm.full_name) {
+        console.warn(`[Sync] ⚠️  VM ${vm.id} n'a pas de full_name, SKIP`);
         skipped++;
         continue;
       }
       
-      const fullName = vm.full_name;
-      if (!fullName) {
-        console.warn(`[Sync] VM ${vm.id} (${vm.name}) n'a pas de full_name`);
-        skipped++;
-        continue;
-      }
+      // ✅ COMMANDE VIRSH DIRECTE POUR DEBUG
+      const cmd = `virsh domstate ${vm.full_name}`;
+      console.log(`[Sync] 💻 Exécution: ${cmd}`);
       
-      const realState = await virsh.getVMState(fullName);
+      const realState = await virsh.getVMState(vm.full_name);
+      console.log(`[Sync] 📤 Résultat virsh: "${realState}" (DB: "${vm.status}")`);
       
       if (realState === 'unknown') {
-        console.warn(`[Sync] VM ${fullName} introuvable dans libvirt`);
+        console.warn(`[Sync] ⚠️  VM ${vm.full_name} introuvable dans libvirt, SKIP`);
         skipped++;
         continue;
       }
       
-      if (realState !== vm.status) {
+      // ✅ NORMALISER les états pour comparaison
+      const normalizedRealState = realState.toLowerCase().trim();
+      const normalizedDbState = vm.status.toLowerCase().trim();
+      
+      if (normalizedRealState !== normalizedDbState) {
+        console.log(`[Sync] 📝 MISE À JOUR: ${vm.full_name} "${vm.status}" → "${realState}"`);
         await vm.update({ status: realState });
-        console.log(`[Sync] ✅ ${fullName}: ${vm.status} → ${realState}`);
         updated++;
       } else {
-        console.log(`[Sync] ⏭️  ${fullName}: ${vm.status} (inchangé)`);
+        console.log(`[Sync] ⏭️  ${vm.full_name}: "${vm.status}" (inchangé)`);
         skipped++;
       }
       
@@ -167,35 +182,15 @@ vmQueue.process('sync-state', async () => {
     }
   }
   
-  console.log(`[Sync] 📊 Résultat: ${updated} maj, ${skipped} ignorées, ${errors} erreurs`);
-  return { updated, skipped, errors, total: vms.length };
-});
-
-
-// Handler DESTROY BY USER DELETE
-vmQueue.process('destroy-user-vms', async (job) => {
-  const { userId } = job.data;
-  const user = await User.findByPk(userId, { include: VirtualMachine });
+  console.log(`\n========== [Sync] ✅ FIN SYNC - Updated: ${updated}, Skipped: ${skipped}, Errors: ${errors} ==========\n`);
   
-  console.log(`[VM Worker] Suppression CASCADE pour user ${user.name} (${user.VirtualMachines.length} VMs)`);
-  
-  for (const vm of user.VirtualMachines) {
-    try {
-      console.log(`[VM Worker] Destroy VM ${vm.name} (${vm.full_name})`);
-      
-      if (vm.tf_dir) {
-        await terraform.destroyConfig(vm.tf_dir);
-      } else if (vm.full_name) {
-        await virsh.forceStopVM(vm.full_name);
-      }
-      
-      await vm.destroy(); // ✅ Supprime immédiatement de la DB
-      await emailQueue.add('vm-deleted', { email: user.email, vmName: vm.name });
-    } catch (err) {
-      console.error(`[VM Worker] Erreur destruction ${vm.name}:`, err);
-      // Ne pas throw, continuer sur les autres VMs
-    }
-  }
+  return { 
+    updated, 
+    skipped, 
+    errors, 
+    total: vms.length,
+    timestamp: new Date().toISOString()
+  };
 });
 
 console.log('🛠️  VM Worker started');

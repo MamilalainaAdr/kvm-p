@@ -6,11 +6,14 @@ const API = axios.create({
   withCredentials: true
 });
 
+// Interceptor pour erreurs (hors /auth/me)
 API.interceptors.response.use(
   response => response,
   error => {
     const message = error.response?.data?.message || 'Une erreur est survenue';
-    if (!error.config?.url?.includes('/auth/me')) toast.error(message);
+    if (!error.config?.url?.includes('/auth/me')) {
+      toast.error(message);
+    }
     return Promise.reject(error);
   }
 );

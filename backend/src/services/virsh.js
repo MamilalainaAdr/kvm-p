@@ -4,6 +4,10 @@ import { promisify } from 'util';
 const execAsync = promisify(exec);
 
 export const getVMState = async (vmName) => {
+  if (!vmName) {
+    console.warn('[Virsh] getVMState appelé avec vmName vide');
+    return 'unknown';
+  }
   try {
     // Timeout 5 secondes pour éviter blocage
     const { stdout } = await execAsync(`virsh domstate ${vmName}`, { timeout: 5000 });

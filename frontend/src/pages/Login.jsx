@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import API from '../services/api';
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -29,11 +30,8 @@ export default function Login() {
 
   return (
     <div className="w-full min-h-screen flex items-start justify-center">
-      
-      {/* Conteneur principal identique à Home */}
       <div className="flex flex-1 mt-52 flex-col md:flex-row items-center justify-start gap-x-20 w-full h-full px-6 md:px-16 lg:px-24">
 
-        {/* --- PARTIE GAUCHE IDENTIQUE À HOME --- */}
         <div className="hidden md:flex flex-col justify-center space-y-8 text-left w-full md:w-1/2">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-600 leading-tight">
             Facile, <br /> complète <br /> et personnalisée
@@ -45,7 +43,6 @@ export default function Login() {
           </p>
         </div>
 
-        {/* --- FORMULAIRE LOGIN À DROITE --- */}
         <div className="w-full md:w-1/2 flex justify-center mt-10 md:mt-0 jump">
           <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-lg">
             <h2 className="text-2xl text-center font-bold mb-4 text-gray-800">Se connecter</h2>

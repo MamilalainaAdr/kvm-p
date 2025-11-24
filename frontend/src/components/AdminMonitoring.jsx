@@ -9,7 +9,8 @@ export default function AdminMonitoring() {
   useEffect(() => {
     if (!user || user.role !== 'admin') return;
     
-    const socket = io('/', {
+    // ✅ CORRECTION: Utiliser la base URL relative
+    const socket = io({
       withCredentials: true,
       auth: { token: localStorage.getItem('token') },
       transports: ['websocket', 'polling']
@@ -24,12 +25,11 @@ export default function AdminMonitoring() {
       setSystemStats(stats);
     });
 
-    socket.on('error', (err) => {
-      // Fallback immédiat si socket échoue
+    socket.on('error', () => {
       fetchStatsREST();
     });
 
-    socket.on('connect_error', (err) => {
+    socket.on('connect_error', () => {
       fetchStatsREST();
     });
 
@@ -75,7 +75,7 @@ export default function AdminMonitoring() {
   }
 
   return (
-    <div className=" bg-white p-4 rounded shadow mt-6 space-y-4">
+    <div className="bg-white p-4 rounded shadow mt-6 space-y-4">
       <h2 className="text-xl font-bold flex justify-between">
         Informations sur le système
       </h2>
