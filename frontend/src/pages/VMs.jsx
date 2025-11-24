@@ -205,11 +205,11 @@ export default function VMs() {
                         <p className="text-gray-500">VCPU</p>
                         <p className="font-bold">{selectedPlan.vcpu}</p>
                       </div>
-                      <div className="text-center bg-slate-100 border-slate-200 border">
+                      <div className="text-center p-2 bg-slate-100 border-slate-200 border">
                         <p className="text-gray-500">RAM</p>
                         <p className="font-bold">{selectedPlan.memory} Mo</p>
                       </div>
-                      <div className="text-center bg-slate-100 border-slate-200 border">
+                      <div className="text-center p-2 bg-slate-100 border-slate-200 border">
                         <p className="text-gray-500">Disque</p>
                         <p className="font-bold">{selectedPlan.disk} Go</p>
                       </div>
