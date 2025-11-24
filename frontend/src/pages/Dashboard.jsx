@@ -1,19 +1,44 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import AdminMonitoring from '../components/AdminMonitoring';
-import UserMonitoring from '../components/UserMonitoring';
+import AdminMonitoring from '../components/monitoring/AdminMonitoring';
+import UserMonitoring from '../components/monitoring/UserMonitoring';
+import { Card } from '../components/ui/Card';
+import { Server, Activity } from 'lucide-react';
+import API from '../services/api';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  return (
-    <div className="p-6">
-      <p>Bienvenue, <em><b className='text-slate-700'>{user?.name}</b></em></p>
+  const [vmStats, setVmStats] = useState({ total: 0, running: 0 });
 
+  // ✅ Récupérer les stats des VMs
+  useEffect(() => {
+    const fetchVMStats = async () => {
+      try {
+        const { data } = await API.get('/vms');
+        const vms = data.vms || [];
+        const runningCount = vms.filter(vm => vm.status === 'running').length;
+        setVmStats({ total: vms.length, running: runningCount });
+      } catch (err) {
+        console.error('Erreur chargement stats VMs:', err);
+      }
+    };
+
+    fetchVMStats();
+    // Rafraîchir toutes les 30s
+    const interval = setInterval(fetchVMStats, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="space-y-6">
       {user?.role === 'admin' ? (
         <>
           <AdminMonitoring />
-          <UserMonitoring/>
+          <UserMonitoring />
         </>
-        ) : (<UserMonitoring />)}
+      ) : (
+        <UserMonitoring />
+      )}
     </div>
   );
 }

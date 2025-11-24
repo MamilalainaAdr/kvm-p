@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import API from '../services/api';
+import { Mail, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
+import { Card } from '../components/ui/Card';
 
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams();
@@ -27,16 +29,46 @@ export default function VerifyEmail() {
   }, [token]);
 
   return (
-    <div className="container mt-8">
-      <div className="max-w-md mt-6 mx-auto bg-white p-6 rounded shadow text-center">
-        {status === 'loading' && <p>Vérification en cours...</p>}
-        {status === 'success' && (
-          <>
-            <p className="text-green-600 mb-4">{message}</p>
-            <Link to="/login" className="text-blue-600">Se connecter</Link>
-          </>
-        )}
-        {status === 'error' && <p className="text-red-600">{message}</p>}
+    <div className="min-h-screen flex items-center justify-center px-4 py-8">
+      <div className="w-full max-w-md">
+        <Card>
+          <div className="text-center space-y-4">
+            {status === 'loading' && (
+              <>
+                <Mail className="w-12 h-12 text-accent animate-pulse mx-auto" />
+                <p className="text-muted">Vérification en cours...</p>
+              </>
+            )}
+            
+            {status === 'success' && (
+              <>
+                <CheckCircle className="w-12 h-12 text-success mx-auto" />
+                <p className="text-success font-medium">{message}</p>
+                <Link 
+                  to="/login" 
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primaryDark text-white rounded-lg font-medium transition-colors"
+                >
+                  Se connecter
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </>
+            )}
+            
+            {status === 'error' && (
+              <>
+                <XCircle className="w-12 h-12 text-error mx-auto" />
+                <p className="text-error font-medium">{message}</p>
+                <Link 
+                  to="/register" 
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-accent hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
+                >
+                  S'inscrire
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </>
+            )}
+          </div>
+        </Card>
       </div>
     </div>
   );

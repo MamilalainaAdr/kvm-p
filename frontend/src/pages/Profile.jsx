@@ -1,99 +1,117 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import API from '../services/api';
+import { Mail, LogOut } from 'lucide-react';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Card } from '../components/ui/Card';
 
 export default function Profile() {
   const { user, logout } = useAuth();
   const [name, setName] = useState(user.name);
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
+  const [loading, setLoading] = useState(false);
 
   const updateName = async (e) => {
     e.preventDefault();
     if (name === user.name) return;
-    await API.put('/profile', { name });
-    logout();
+    setLoading(true);
+    try {
+      await API.put('/profile', { name });
+      logout();
+    } finally {
+      setLoading(false);
+    }
   };
 
   const changePassword = async (e) => {
     e.preventDefault();
-    if (passwords.new !== passwords.confirm) return alert('Mots de passe différents');
-    await API.put('/profile/password', { currentPassword: passwords.current, newPassword: passwords.new });
-    logout();
+    if (passwords.new !== passwords.confirm) {
+      alert('Mots de passe différents');
+      return;
+    }
+    setLoading(true);
+    try {
+      await API.put('/profile/password', { 
+        currentPassword: passwords.current, 
+        newPassword: passwords.new 
+      });
+      logout();
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="bg-white p-8 rounded shadow space-y-6">      
-      {/* --- Header profil avec avatar --- */}
-      <div className="flex items-center gap-6">
-        <img
-          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=374951&color=fff`}
-          alt="avatar"
-          className="w-16 h-16 rounded-full"
-        />
-        <div className="space-y-1">
-          <div className="text-lg font-semibold text-gray-800">{user.name}</div>
-          <div className="text-sm text-gray-500">{user.email}</div>
-          <div className="text-sm text-gray-400">{user.role === 'user' ? 'Utilisateur' : 'Administrateur'}</div>
+    <div className="max-w-2xl mx-auto space-y-6">
+      {/* Header */}
+      <Card>
+        <div className="flex items-center gap-4">
+          <img
+            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=374951&color=fff`}
+            alt="avatar"
+            className="w-20 h-20 rounded-full"
+          />
+          <div>
+            <h1 className="text-2xl font-bold text-text">{user.name}</h1>
+            <p className="text-muted flex items-center gap-2">
+              <Mail className="w-4 h-4" />
+              {user.email}
+            </p>
+          </div>
         </div>
-      </div>
+      </Card>
 
-      {/* --- Ligne de séparation centrée --- */}
-      <div className="h-px w-24 bg-slate-300 mx-auto"></div>
-
-      {/* --- Modifier le nom --- */}
-      <div>
-        <h3 className="mt-16 text-lg font-semibold mb-4 text-gray-700">Modifier nom</h3>
-        <form onSubmit={updateName} className="flex flex-col gap-4">
-          <input
+      {/* Modifier nom */}
+      <Card>
+        <h2 className="text-lg font-semibold text-text mb-4 flex items-center gap-2">
+          Modifier le nom
+        </h2>
+        <form onSubmit={updateName} className="space-y-4">
+          <Input
             value={name}
             onChange={e => setName(e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 outline-none"
+            placeholder="Nouveau nom"
           />
-          <button
-            type="submit"
-            className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition"
-          >
+          <Button type="submit" loading={loading}>
             Mettre à jour
-          </button>
+          </Button>
         </form>
-      </div>
+      </Card>
 
-      {/* --- Changer mot de passe --- */}
-      <div>
-        <h3 className="mt-16 text-lg font-semibold mb-4 text-gray-700">Changer mot de passe</h3>
-        <form onSubmit={changePassword} className="mt-6 flex flex-col gap-4">
-          <input
+      {/* Changer mot de passe */}
+      <Card>
+        <h2 className="text-lg font-semibold text-text mb-4 flex items-center gap-2">
+          Changer le mot de passe
+        </h2>
+        <form onSubmit={changePassword} className="space-y-4">
+          <Input
             type="password"
             placeholder="Mot de passe actuel"
             value={passwords.current}
             onChange={e => setPasswords({ ...passwords, current: e.target.value })}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 outline-none"
             required
           />
-          <input
+          <Input
             type="password"
             placeholder="Nouveau mot de passe"
             value={passwords.new}
             onChange={e => setPasswords({ ...passwords, new: e.target.value })}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 outline-none"
             required
           />
-          <input
+          <Input
             type="password"
-            placeholder="Confirmer"
+            placeholder="Confirmer le mot de passe"
             value={passwords.confirm}
             onChange={e => setPasswords({ ...passwords, confirm: e.target.value })}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 outline-none"
             required
           />
-          <button
-            type="submit"
-            className="mb-10 px-4 py-2 bg-red-600 font-semibold text-white rounded-lg hover:bg-red-700 transition"
-          >
-            Changer mot de passe
-          </button>
+          <Button type="submit" variant="danger" loading={loading}>
+            <LogOut className="w-4 h-4" />
+            Changer et me déconnecter
+          </Button>
         </form>
-      </div>
+      </Card>
     </div>
   );
 }

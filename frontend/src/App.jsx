@@ -1,10 +1,9 @@
-import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import Layout from './components/Layout';
+import Layout from './components/layout/Layout';
 import Toaster from './components/Toaster';
 import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
+import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
 import VerifyEmail from './pages/VerifyEmail';
 import Dashboard from './pages/Dashboard';
 import VMs from './pages/VMs';
@@ -12,7 +11,7 @@ import Profile from './pages/Profile';
 import ResetPassword from './pages/ResetPassword';
 import PrivateRoute from './components/PrivateRoute';
 import AdminRoute from './components/AdminRoute';
-import AdminUsers from './components/AdminUsers';
+import AdminUsers from './pages/AdminUsers';
 
 export default function App() {
   return (
@@ -32,6 +31,7 @@ export default function App() {
           
           <Route path="/admin/vms" element={<AdminRoute><VMs /></AdminRoute>} />
           <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+          
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>

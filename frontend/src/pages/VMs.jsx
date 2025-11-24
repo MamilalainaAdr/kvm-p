@@ -1,19 +1,26 @@
 import { useState, useEffect } from 'react';
 import API from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Toaster, toast } from 'react-hot-toast';
+import { 
+  Play, Square, RotateCw, Trash2, Plus, X, Power, 
+  Server, Cpu, HardDrive, MemoryStick 
+} from 'lucide-react';
+import { Button } from '../components/ui/Button';
+import { Modal } from '../components/ui/Modal';
+import { Card } from '../components/ui/Card';
+import { Input } from '../components/ui/Input';
 import OSVersionPicker from '../components/OSVersionPicker';
-import ConfirmModal from '../components/ConfirmModal';
 import PlanSelector from '../components/PlanSelector';
+import toast from 'react-hot-toast';
 
 const statusColors = {
-  creating: 'bg-yellow-100 text-yellow-800',
-  pending: 'bg-gray-100 text-gray-800',
-  running: 'bg-green-100 text-green-800',
-  stopped: 'bg-red-100 text-red-800',
-  'shut off' : 'bg-gray-100 text-gray-800',
-  error: 'bg-red-100 text-red-600',
-  deleting: 'bg-orange-100 text-orange-800'
+  creating: 'bg-warning text-text',
+  pending: 'bg-background text-text',
+  running: 'bg-success text-white',
+  stopped: 'bg-error text-white',
+  'shut off': 'bg-background text-text',
+  error: 'bg-error text-white',
+  deleting: 'bg-warning text-text',
 };
 
 export default function VMs() {
@@ -33,17 +40,6 @@ export default function VMs() {
   });
   const [actionConfirm, setActionConfirm] = useState({ open: false, action: null, vmId: null });
 
-  // ✅ CORRECTION : Définir selectPlan À L'INTÉRIEUR du composant
-  const selectPlan = (plan) => {
-    setSelectedPlan(plan);
-    setForm(prevForm => ({ 
-      ...prevForm,  // ✅ Utiliser la forme fonctionnelle pour éviter les problèmes de fermeture
-      vcpu: plan.vcpu, 
-      memory: plan.memory, 
-      disk_size: plan.disk 
-    }));
-  };
-
   const fetchVMs = async () => {
     try {
       const { data } = await API.get('/vms');
@@ -61,25 +57,17 @@ export default function VMs() {
     return () => clearInterval(interval);
   }, []);
 
-  const nextStep = () => {
-    if (!selectedPlan) {
-      toast.error('Veuillez sélectionner un plan');
-      return;
-    }
-    setStep(2);
+  const selectPlan = (plan) => {
+    setSelectedPlan(plan);
+    setForm(prev => ({ ...prev, vcpu: plan.vcpu, memory: plan.memory, disk_size: plan.disk }));
   };
 
   const createVM = async (e) => {
     e.preventDefault();
-    
-    // ✅ VALIDATION complète avant envoi
     if (!form.name || !form.os_type || !form.version) {
-      toast.error('Veuillez remplir tous les champs obligatoires');
+      toast.error('Veuillez remplir tous les champs');
       return;
     }
-    
-    // ✅ Debug log
-    console.log('Création VM avec données:', form);
     
     try {
       await API.post('/vms', form);
@@ -87,168 +75,243 @@ export default function VMs() {
       setStep(1);
       setSelectedPlan(null);
       setForm({ name: '', os_type: '', version: '', vcpu: 1, memory: 512, disk_size: 10 });
-      setTimeout(fetchVMs, 2000);
       toast.success('VM en cours de création');
+      setTimeout(fetchVMs, 2000);
     } catch (err) {
-      console.error('Erreur création VM:', err.response?.data || err);
-      toast.error(err.response?.data?.message || 'Erreur lors de la création');
+      toast.error(err.response?.data?.message || 'Erreur création VM');
     }
   };
 
-  const deleteVM = async (id) => {
-    setActionConfirm({ open: true, action: 'delete', vmId: id });
+  const confirmAction = async () => {
+    try {
+      await API.post(`/vms/${actionConfirm.vmId}/action`, { action: actionConfirm.action });
+      toast.success(`Action "${actionConfirm.action}" lancée`);
+    } catch (err) {
+      toast.error('Erreur lors de l\'action');
+    } finally {
+      setActionConfirm({ open: false, action: null, vmId: null });
+      setTimeout(fetchVMs, 1000);
+    }
   };
 
   const confirmDelete = async () => {
-    await API.delete(`/vms/${actionConfirm.vmId}`);
-    setActionConfirm({ open: false, action: null, vmId: null });
-    fetchVMs();
+    try {
+      await API.delete(`/vms/${actionConfirm.vmId}`);
+      toast.success('VM supprimée');
+    } catch (err) {
+      toast.error('Erreur suppression');
+    } finally {
+      setActionConfirm({ open: false, action: null, vmId: null });
+      fetchVMs();
+    }
   };
-
-  const actionVM = async (id, action) => {
-    setActionConfirm({ open: true, action, vmId: id });
-  };
-
-  const confirmAction = async () => {
-    await API.post(`/vms/${actionConfirm.vmId}/action`, { action: actionConfirm.action });
-    setActionConfirm({ open: false, action: null, vmId: null });
-    setTimeout(fetchVMs, 1000);
-  };
-
-  if (!user) return <div className="p-4">Non authentifié</div>;
 
   return (
-    <>
-      <ConfirmModal
-        isOpen={actionConfirm.open}
-        onClose={() => setActionConfirm({ open: false, action: null, vmId: null })}
-        onConfirm={actionConfirm.action === 'delete' ? confirmDelete : confirmAction}
-        title={`Confirmer ${actionConfirm.action === 'delete' ? 'la suppression' : 'l\'action'}`}
-        message={`Êtes-vous sûr de vouloir ${actionConfirm.action === 'delete' ? 'supprimer' : actionConfirm.action} cette VM ?`}
-      />
-
-      <div className="container mt-8">
-        <Toaster position="top-right" />
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">{user.role === 'admin' ? 'Toutes les VMs' : 'Mes VMs'}</h2>
+    <div className="space-y-6">
+      <Card>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+          <h1 className="text-2xl font-bold text-text flex items-center gap-2">
+            {user.role === 'admin' ? 'Toutes les VMs' : 'Mes machines'}
+          </h1>
           {user.role === 'user' && (
-            <button onClick={() => setShowCreate(true)} className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700">+ Créer VM</button>
+            <Button onClick={() => setShowCreate(true)}>
+              <Plus className="w-4 h-4" />
+            </Button>
           )}
         </div>
 
-        {loading ? (
-          <p>Chargement...</p>
-        ) : (
-          <div className="bg-white rounded shadow overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-100">
-                <tr>
-                  <th className="p-2 text-left">Nom</th>
-                  <th className="p-2 text-left">IP</th>
-                  <th className="p-2 text-left">Statut</th>
-                  <th className="p-2 text-left">Actions</th>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-slate-100">
+              <tr className="border-b">
+                <th className="text-left p-3 font-semibold text-text">Nom</th>
+                <th className="text-left p-3 font-semibold text-text">IP</th>
+                <th className="text-left p-3 font-semibold text-text">Status</th>
+                <th className="text-left p-3 font-semibold text-text">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vms.map(vm => (
+                <tr key={vm.id} className="border-b hover:bg-background">
+                  <td className="p-3 font-medium text-text">{vm.name}</td>
+                  <td className="p-3 text-muted">{vm.ip_address || 'N/A'}</td>
+                  <td className="p-3">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1 ${statusColors[vm.status]}`}>
+                      {vm.status}
+                    </span>
+                  </td>
+                  <td className="p-3">
+                    <div className="flex gap-2">
+                      {vm.status?.toLowerCase() === 'running' && (
+                        <>
+                          <Button 
+                            size="sm" 
+                            variant="warning"
+                            onClick={() => setActionConfirm({ open: true, action: 'reboot', vmId: vm.id })}
+                          >
+                            <RotateCw className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="secondary"
+                            onClick={() => setActionConfirm({ open: true, action: 'stop', vmId: vm.id })}
+                          >
+                            <Square className="w-4 h-4" />
+                          </Button>
+                        </>
+                      )}
+                      {(vm.status?.toLowerCase() === 'stopped' || vm.status?.toLowerCase() === 'shut off') && (
+                        <Button 
+                          size="sm" 
+                          variant="success"
+                          onClick={() => setActionConfirm({ open: true, action: 'start', vmId: vm.id })}
+                        >
+                          <Play className="w-4 h-4" />
+                        </Button>
+                      )}
+                      <Button 
+                        size="sm" 
+                        variant="danger"
+                        onClick={() => setActionConfirm({ open: true, action: 'delete', vmId: vm.id })}
+                        disabled={vm.status === 'deleting'}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {vms.map(vm => (
-                  <tr key={vm.id} className="border-t hover:bg-slate-50">
-                    <td className="p-2">{vm.name}</td>
-                    <td className="p-2">{vm.ip_address || 'N/A'}</td>
-                    <td className="p-2">
-                      <span className={`px-2 py-1 rounded-full text-xs ${statusColors[vm.status]}`}>
-                        {vm.status}
-                      </span>
-                    </td>
-                    <td className="p-2">
-                      <div className="flex gap-2">
-                        {vm.status?.toLowerCase() === 'running' && (
-                          <>
-                            <button onClick={() => actionVM(vm.id, 'reboot')} className="px-2 py-1 bg-yellow-600 text-white rounded text-xs hover:bg-yellow-700">Reboot</button>
-                            <button onClick={() => actionVM(vm.id, 'stop')} className="px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700">Stop</button>
-                          </>
-                        )}
-                        {vm.status?.toLowerCase() === 'stopped' || vm.status?.toLowerCase() === 'shut off' && (
-                          <button onClick={() => actionVM(vm.id, 'start')} className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700">Start</button>
-                        )}
-                        <button onClick={() => deleteVM(vm.id)} disabled={vm.status === 'deleting'} className="px-2 py-1 bg-gray-800 text-white rounded text-xs hover:bg-gray-900 disabled:opacity-50">Supprimer</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {vms.length === 0 && (
+          <div className="text-center py-8 text-muted">
+            Aucune VM trouvée
           </div>
         )}
+      </Card>
 
-        {showCreate && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg max-w-4xl w-full p-6 max-h-screen overflow-y-auto">
-              <h2 className="text-xl font-bold mb-4">Créer une VM - Étape {step}/2</h2>
-              
-              {step === 1 && (
-                <>
-                  <p className="text-gray-600 mb-4">Sélectionnez un plan :</p>
-                  <PlanSelector selectedPlan={selectedPlan} onSelect={selectPlan} />
-                  <div className="flex gap-2 justify-end mt-6">
-                    <button onClick={() => setShowCreate(false)} className="px-4 py-2 bg-slate-100 rounded hover:bg-slate-200">Annuler</button>
-                    <button onClick={nextStep} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Suivant</button>
-                  </div>
-                </>
-              )}
-
-              {step === 2 && selectedPlan && (
-                <>
-                  <div className="bg-slate-50 rounded-lg mb-4">
-                    <h3 className="font-bold text-lg text-red-600 mb-2">{selectedPlan.name}</h3>
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div className="text-center p-2 bg-slate-100 border-slate-200 border">
-                        <p className="text-gray-500">VCPU</p>
-                        <p className="font-bold">{selectedPlan.vcpu}</p>
-                      </div>
-                      <div className="text-center p-2 bg-slate-100 border-slate-200 border">
-                        <p className="text-gray-500">RAM</p>
-                        <p className="font-bold">{selectedPlan.memory} Mo</p>
-                      </div>
-                      <div className="text-center p-2 bg-slate-100 border-slate-200 border">
-                        <p className="text-gray-500">Disque</p>
-                        <p className="font-bold">{selectedPlan.disk} Go</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <form onSubmit={createVM} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Nom de la VM *</label>
-                      <input 
-                        placeholder="nom-de-la-vm" 
-                        value={form.name} 
-                        onChange={e => setForm({...form, name: e.target.value})} 
-                        className="w-full p-2 border rounded" 
-                        required 
-                        pattern="[a-z0-9-]+"
-                        title="Uniquement des lettres minuscules, chiffres et tirets"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Système d'exploitation *</label>
-                      <OSVersionPicker 
-                        value={form.os_type && form.version ? `${form.os_type}:${form.version}` : ''} 
-                        onChange={({os_type, version, ext}) => setForm({...form, os_type, version, ext})} 
-                      />
-                    </div>
-
-                    <div className="flex gap-2 justify-end">
-                      <button type="button" onClick={() => setStep(1)} className="px-4 py-2 bg-slate-100 rounded hover:bg-slate-200">Précédent</button>
-                      <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Créer la VM</button>
-                    </div>
-                  </form>
-                </>
-              )}
+      {/* Modal création VM */}
+      <Modal
+        isOpen={showCreate}
+        onClose={() => {
+          setShowCreate(false);
+          setStep(1);
+          setSelectedPlan(null);
+        }}
+        title={`Créer une VM - Étape ${step}/2`}
+        size="lg"
+      >
+        {step === 1 && (
+          <div className="space-y-4">
+            <p className="text-muted">Sélectionnez un plan :</p>
+            <PlanSelector selectedPlan={selectedPlan} onSelect={selectPlan} />
+            <div className="flex justify-end gap-3 mt-6">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowCreate(false);
+                  setStep(1);
+                  setSelectedPlan(null);
+                }}
+              >
+                Annuler
+              </Button>
+              <Button 
+                onClick={() => selectedPlan ? setStep(2) : toast.error('Sélectionnez un plan')}
+              >
+                Suivant
+              </Button>
             </div>
           </div>
         )}
-      </div>
-    </>
+
+        {step === 2 && selectedPlan && (
+          <form onSubmit={createVM} className="space-y-4">
+            <div className="rounded-lg p-4">
+              <h3 className="font-bold text-lg text-primary mb-3">{selectedPlan.name}</h3>
+              <div className="grid grid-cols-3 gap-3 text-sm">
+                <div className="text-center p-3 shadow rounded-lg">
+                  <Cpu className="w-5 h-5 mx-auto mb-1 text-accent" />
+                  <p className="text-muted">VCPU</p>
+                  <p className="font-bold">{selectedPlan.vcpu}</p>
+                </div>
+                <div className="text-center p-3 shadow rounded-lg">
+                  <MemoryStick className="w-5 h-5 mx-auto mb-1 text-accent" />
+                  <p className="text-muted">RAM</p>
+                  <p className="font-bold">{selectedPlan.memory} Mo</p>
+                </div>
+                <div className="text-center p-3 shadow rounded-lg">
+                  <HardDrive className="w-5 h-5 mx-auto mb-1 text-accent" />
+                  <p className="text-muted">Disque</p>
+                  <p className="font-bold">{selectedPlan.disk} Go</p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-medium mt-8 font-medium text-text mb-1">
+                Nom de la VM : <span className='text-error'>*</span>
+              </label>
+              <Input 
+                placeholder="ma-vm"
+                value={form.name}
+                onChange={e => setForm({...form, name: e.target.value})}
+                required
+                pattern="[a-z0-9-]+"
+                title="Uniquement des lettres minuscules, chiffres et tirets"
+              />
+            </div>
+
+            <div>
+              <label className="block text-medium font-medium mt-8 text-text mb-1">
+                Choisir le système d'exploitation : <span className='text-error'>*</span>
+              </label>
+              <OSVersionPicker 
+                value={form.os_type && form.version ? `${form.os_type}:${form.version}` : ''}
+                onChange={({os_type, version, ext}) => setForm({...form, os_type, version, ext})}
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <Button type="button" variant="outline" onClick={() => setStep(1)}>
+                Précédent
+              </Button>
+              <Button type="submit">
+                Créer la VM
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* Modal confirmation actions */}
+      <Modal
+        isOpen={actionConfirm.open}
+        onClose={() => setActionConfirm({ open: false, action: null, vmId: null })}
+        title={`Confirmer ${actionConfirm.action === 'delete' ? 'la suppression' : 'l\'action'}`}
+        footer={
+          <>
+            <Button 
+              variant="outline" 
+              onClick={() => setActionConfirm({ open: false, action: null, vmId: null })}
+            >
+              Annuler
+            </Button>
+            <Button 
+              variant={actionConfirm.action === 'delete' ? 'danger' : 'primary'}
+              onClick={actionConfirm.action === 'delete' ? confirmDelete : confirmAction}
+            >
+              {actionConfirm.action === 'delete' ? 'Supprimer' : 'Confirmer'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-text">
+          Êtes-vous sûr de vouloir <strong>{actionConfirm.action}</strong> cette VM ?
+        </p>
+      </Modal>
+    </div>
   );
 }

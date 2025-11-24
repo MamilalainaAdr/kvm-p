@@ -1,44 +1,47 @@
 import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import logo from '../assets/logo-transparent.png';
+import AuthLayout from '../components/layout/AuthLayout';
+
 export default function Home() {
   return (
-    <div className="w-full min-h-screen flex items-start justify-center">
-      {/* Section principale plein écran */}
-      <div className="flex flex-1 mt-52 flex-col md:flex-row items-center justify-start gap-x-20 w-full h-full px-6 md:px-16 lg:px-24">
-        
-      {/* --- Texte à gauche --- */}
-      <div className="flex flex-col justify-center space-y-8 text-left w-full md:w-1/2">
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-800 leading-tight">
-          Facile, <br /> complète <br /> et personnalisée
-        </h1>
+    <AuthLayout>
+      <div className="w-full min-h-screen flex items-start justify-center px-4 md:px-8 lg:px-16">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-12 max-w-7xl w-full mt-16">
+          
+          {/* Texte */}
+          <div className="flex-1 space-y-6 text-center md:text-left overflow-hidden">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-text leading-tight">
+              Facile , <br /> complète <br /> et personnalisée
+            </h1>
 
-        <p className="text-gray-600 text-lg md:text-xl">
-          Gérez vos machines simplement avec{' '}
-          <span className="font-semibold text-red-600">OBox</span>.
-        </p>
+            <p className="text-lg md:text-xl text-muted max-w-lg">
+              Gérez vos machines simplement avec <span className="font-bold text-primary">OBox</span>.
+            </p>
 
-        <a
-          href="/login"
-          className="inline-block bg-red-600 text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-red-700 shadow-md hover:shadow-lg transition duration-300 w-fit"
-        >
-          Commencer →
-        </a>
-      </div>
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-primary hover:bg-primaryDark text-white rounded-full text-lg font-semibold shadow-lg hover:shadow-xl transition-all group"
+            >
+              Commencer 
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
 
-      {/* --- Image/logo à droite --- */}
-      <div className="hidden md:flex justify-center items-center w-full md:w-1/2 mt-10 md:mt-0">
-        <div className="relative w-[70%] md:w-[90%] max-w-3xl">
-          <img
-            src={logo}
-            alt="OBox Logo"
-            className="w-full object-contain hover:scale-105 logo-loop"
-          />
+          {/* Logo */}
+          <div className="flex-1 flex justify-center">
+            <div className="relative w-full max-w-lg">
+              <img
+                src={logo}
+                alt="OBox Logo"
+                className="w-full object-contain hover:scale-105 transition-transform duration-300 logo-loop"
+              />
+              <div className="absolute -bottom-3 left-0 w-full h-1 bg-slate-400 blur-sm"></div>
+            </div>
+          </div>
 
-          {/* Bordure floutée en bas de l'image seulement */}
-          <div className="absolute -bottom-3 left-0 w-full h-1 bg-slate-400 blur-sm"></div>
         </div>
       </div>
-    </div>
-    </div>
+    </AuthLayout>
   );
 }

@@ -28,5 +28,9 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  return <AuthContext.Provider value={{ user, setUser, loading, logout, refresh: fetchMe }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, setUser, loading, logout, refresh: fetchMe }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
