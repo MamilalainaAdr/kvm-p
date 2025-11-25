@@ -8,7 +8,7 @@
 
 OBox permet aux utilisateurs de créer, gérer et monitorer des VMs KVM via une interface web moderne. Conçu comme un MVP, il utilise des solutions **simples et robustes**.
 
-### 🏗️ Architecture 3-Tiers
+### 🏗️ Architecture
 
 ```mermaid
 graph TB
@@ -50,6 +50,7 @@ graph TB
 │   │   │   ├── vms.js          # CRUD VMs (avec priorités)
 │   │   │   ├── admin.js        # Gestion users
 │   │   │   └── profile.js      # Profil utilisateur
+│   │   │   └── monitoring.js   # Route fallback monitoring
 │   │   ├── services/
 │   │   │   ├── queue.js        # Queues + priorités
 │   │   │   ├── terraform.js    # Terraform wrapper
@@ -60,7 +61,7 @@ graph TB
 │   │   └── workers/
 │   │       ├── vm.js           # Worker VMs (create/destroy/action)
 │   │       ├── email.js        # Worker emails
-│   │       └── monitoring.js   # Worker monitoring
+│   │       └── monitoring.js   # Worker monitoring (collecte tous les 5s)
 │   └── package.json
 ├── frontend/
 │   ├── src/
@@ -91,7 +92,7 @@ KVM/libvirt & Terraform installé sur l'hôte
 
 ### 1. Cloner & Installer
 ```bash
-git clone <repo> && cd obox
+git clone <repo> && cd kvm-p
 npm install --prefix backend
 npm install --prefix frontend
 ```
