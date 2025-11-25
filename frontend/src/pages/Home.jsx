@@ -10,9 +10,9 @@ export default function Home() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-12 max-w-7xl w-full mt-16">
           
           {/* Texte */}
-          <div className="flex-1 space-y-6 text-center md:text-left overflow-hidden">
+          <div className="flex-1 space-y-6 text-left md:text-left overflow-hidden">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-text leading-tight">
-              Facile , <br /> complète <br /> et personnalisée
+              Facile , <br /> complète <br /> et <br />personnalisée
             </h1>
 
             <p className="text-lg md:text-xl text-muted max-w-lg">
@@ -29,7 +29,7 @@ export default function Home() {
           </div>
 
           {/* Logo */}
-          <div className="flex-1 flex justify-center">
+          <div className="flex-1 justify-center hidden md:flex">
             <div className="relative w-full max-w-lg">
               <img
                 src={logo}

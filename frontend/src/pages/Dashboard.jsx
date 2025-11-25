@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import AdminMonitoring from '../components/monitoring/AdminMonitoring';
 import UserMonitoring from '../components/monitoring/UserMonitoring';
-import { Card } from '../components/ui/Card';
-import { Server, Activity } from 'lucide-react';
 import API from '../services/api';
 
 export default function Dashboard() {

@@ -65,9 +65,12 @@ export default function UserMonitoring() {
         </div>
 
         {vmStats.total === 0 ? (
-          <div className="text-center py-8 text-muted">
+          <div className="text-center py-8 text-muted rounded bg-muted/10">
             <p>Aucune VM trouvée</p>
-            <p className="text-sm mt-2">Créez votre première machine virtuelle</p>
+            {user.role === 'user' &&
+            <>
+              <a href='/vms' className="text-sm underline text-blue-500 hover:text-blue-700 mt-2">Créez votre première machine virtuelle</a>
+            </>}
           </div>
         ) : (
           <div className="space-y-3">

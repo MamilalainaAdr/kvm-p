@@ -55,7 +55,6 @@ export default function AdminUsers() {
           <h1 className="text-2xl font-bold text-text flex items-center gap-2">
             Gestion des Utilisateurs
           </h1>
-          <span className="text-sm text-muted">{users.length} utilisateurs</span>
         </div>
 
         <div className="overflow-x-auto">

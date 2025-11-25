@@ -43,7 +43,7 @@ export default function VerifyEmail() {
             {status === 'success' && (
               <>
                 <CheckCircle className="w-12 h-12 text-success mx-auto" />
-                <p className="text-success font-medium">{message}</p>
+                <p className="text-muted font-medium">{message}</p>
                 <Link 
                   to="/login" 
                   className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primaryDark text-white rounded-lg font-medium transition-colors"
@@ -57,7 +57,7 @@ export default function VerifyEmail() {
             {status === 'error' && (
               <>
                 <XCircle className="w-12 h-12 text-error mx-auto" />
-                <p className="text-error font-medium">{message}</p>
+                <p className="text-muted font-medium">{message}</p>
                 <Link 
                   to="/register" 
                   className="inline-flex items-center gap-2 px-4 py-2 bg-accent hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"

@@ -309,7 +309,7 @@ export default function VMs() {
         }
       >
         <p className="text-text">
-          Êtes-vous sûr de vouloir <strong>{actionConfirm.action}</strong> cette VM ?
+          Êtes-vous sûr de vouloir "<strong>{actionConfirm.action}</strong>" cette VM ?
         </p>
       </Modal>
     </div>
