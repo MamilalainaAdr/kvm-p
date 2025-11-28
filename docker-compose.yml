@@ -11,6 +11,13 @@ services:
       - "5432:5432"
     volumes:
       - kvmp_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-kvmp_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   redis:
     image: redis:7-alpine
     container_name: kvm-redis
@@ -19,6 +26,67 @@ services:
       - "6379:6379"
     volumes:
       - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        - LIBVIRT_GID=142
+    container_name: obox-backend
+    privileged: true
+    user: "1000:142"
+    ports:
+      - "4000:4000"
+    env_file:
+      - ./backend/.env
+    volumes:
+      # Montage du code pour hot-reload
+      - ./backend/src:/app/src:ro
+      - ./backend/package.json:/app/package.json:ro
+      
+      # Montage des sockets et binaires de l'hôte pour KVM/Libvirt/Terraform
+      # - /usr/bin/virsh:/usr/bin/virsh:ro
+      - /var/run/libvirt/libvirt-sock:/var/run/libvirt/libvirt-sock:ro
+      - /var/run/libvirt/libvirt-sock-ro:/var/run/libvirt/libvirt-sock-ro:ro
+
+      # - /usr/bin/qemu-system-x86_64:/usr/bin/qemu-system-x86_64:ro
+      # - /usr/bin/virsh:/usr/bin/virsh:ro
+      # - /usr/bin/terraform:/usr/bin/terraform:ro
+
+      # Montage du dossier Terraform et images
+      - ./terraform:/app/terraform:rw
+      - ./terraform/cloud_img/images:/app/terraform/cloud_img/images:rw
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  
+  # Frontend Vite
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: obox-frontend
+    ports:
+      - "5173:5173"
+    env_file:
+      - ./frontend/.env
+    volumes:
+      # Montage du code pour hot-reload
+      - ./frontend/src:/app/src:ro
+      - ./frontend/public:/app/public:ro
+      - ./frontend/package.json:/app/package.json:ro
+      - ./frontend/vite.config.js:/app/vite.config.js:ro
+    depends_on:
+      - backend
 
 volumes:
   kvmp_db:

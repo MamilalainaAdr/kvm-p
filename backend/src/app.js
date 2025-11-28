@@ -80,7 +80,7 @@ const PORT = process.env.PORT || 4000;
     }
 
     // ✅ Démarrer le serveur avec Socket.IO
-    server.listen(PORT, () => console.log(`🚀 Backend on http://localhost:${PORT}`));
+    server.listen(PORT, () => console.log(`🚀 Backend on http://0.0.0.0:${PORT}`));
   } catch (err) {
     console.error('❌ Startup error:', err);
     process.exit(1);
