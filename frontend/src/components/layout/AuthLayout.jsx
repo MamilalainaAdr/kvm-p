@@ -11,7 +11,7 @@ export default function AuthLayout({ children }) {
   }, []);
 
   return (
-    <div className="overflow-hidden mt-20">
+    <div className="overflow-hidden mt-15">
       <div>
         {children}
       </div>

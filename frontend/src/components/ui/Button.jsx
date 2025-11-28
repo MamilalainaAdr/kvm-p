@@ -9,10 +9,11 @@ const variants = {
   success: 'bg-success hover:bg-green-600 text-white',
   outline: 'bg-white border-2 border-primary text-primary hover:bg-primary hover:text-white',
   ghost: 'bg-transparent text-text hover:bg-background',
+  gray: 'bg-background hover:bg-muted',
 };
 
 const sizes = {
-  sm: 'px-3 py-1.5 text-sm',
+  sm: 'px-2 py-1.5 text-sm',
   md: 'px-4 py-2 text-base',
   lg: 'px-6 py-3 text-lg',
 };

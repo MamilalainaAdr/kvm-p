@@ -153,30 +153,51 @@ export default function VMs() {
                           </Button>
                           <Button 
                             size="sm" 
-                            variant="secondary"
+                            variant="danger"
                             onClick={() => setActionConfirm({ open: true, action: 'stop', vmId: vm.id })}
                           >
-                            <Square className="w-4 h-4" />
+                            <Power className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="gray"
+                            onClick={() => setActionConfirm({ open: true, action: 'delete', vmId: vm.id })}
+                            disabled={vm.status === 'deleting'}
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </>
                       )}
                       {(vm.status?.toLowerCase() === 'stopped' || vm.status?.toLowerCase() === 'shut off') && (
+                        <>
+                          <Button 
+                            size="sm" 
+                            variant="success"
+                            onClick={() => setActionConfirm({ open: true, action: 'start', vmId: vm.id })}
+                          >
+                            <Play className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="gray"
+                            onClick={() => setActionConfirm({ open: true, action: 'delete', vmId: vm.id })}
+                            disabled={vm.status === 'deleting'}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </>
+                        
+                      )}
+                      {(!vm.status?.toLowerCase() === 'pending' || !vm.status?.toLowerCase() === 'creating') && (
                         <Button 
                           size="sm" 
-                          variant="success"
-                          onClick={() => setActionConfirm({ open: true, action: 'start', vmId: vm.id })}
+                          variant="gray"
+                          onClick={() => setActionConfirm({ open: true, action: 'delete', vmId: vm.id })}
+                          disabled={vm.status === 'deleting'}
                         >
-                          <Play className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       )}
-                      <Button 
-                        size="sm" 
-                        variant="danger"
-                        onClick={() => setActionConfirm({ open: true, action: 'delete', vmId: vm.id })}
-                        disabled={vm.status === 'deleting'}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
                     </div>
                   </td>
                 </tr>
