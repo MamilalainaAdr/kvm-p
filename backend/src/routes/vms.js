@@ -51,6 +51,36 @@ router.post('/',
   }
 );
 
+// ✅ UPDATE VM RESOURCES
+router.put('/:id',
+  requireAuth,
+  body('vcpu').isInt({ min: 1 }),
+  body('memory').isInt({ min: 512 }),
+  body('disk_size').isInt({ min: 10 }),
+  validate,
+  async (req, res) => {
+    const vm = await VirtualMachine.findByPk(req.params.id);
+    if (!vm) return res.status(404).json({ message: 'VM introuvable' });
+    if (req.user.role !== 'admin' && vm.user_id !== req.user.id) return res.status(403).json({ message: 'Non autorisé' });
+
+    const { vcpu, memory, disk_size } = req.body;
+
+    // Mise à jour BDD (status 'updating')
+    await vm.update({ status: 'updating' });
+
+    await vmQueue.add('update', 
+      { 
+        user: req.user, 
+        vmId: vm.id, 
+        specs: { vcpu, memory, disk_size } 
+      }, 
+      { priority: PRIORITIES.HIGH }
+    );
+
+    res.json({ message: 'Mise à jour des ressources lancée' });
+  }
+);
+
 // Delete VM
 router.delete('/:id', requireAuth, async (req, res) => {
   const vm = await VirtualMachine.findByPk(req.params.id);

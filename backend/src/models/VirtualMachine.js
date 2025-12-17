@@ -14,7 +14,8 @@ export class VirtualMachine extends Model {
       disk_size: DataTypes.INTEGER,
       ip_address: DataTypes.STRING,
       status: { type: DataTypes.STRING, defaultValue: 'pending' },
-      tf_dir: DataTypes.STRING
+      tf_dir: DataTypes.STRING,
+      ssh_key: { type: DataTypes.TEXT, allowNull: true }
     }, {
       sequelize,
       modelName: 'VirtualMachine',

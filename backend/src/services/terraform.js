@@ -36,6 +36,27 @@ export const generateConfig = async (userName, vmSpec) => {
   return { vmDir, safeName };
 };
 
+// ✅ NOUVELLE FONCTION: Mise à jour de la configuration
+export const updateConfig = async (vmDir, vmSpec, currentFinalDiskName) => {
+  const varsPath = path.join(vmDir, 'terraform.tfvars');
+  let content = await fs.readFile(varsPath, 'utf-8');
+
+  // Mise à jour des ressources
+  content = content
+    .replace(/vcpu\s*=\s*\d+/, `vcpu = ${vmSpec.vcpu}`)
+    .replace(/memory\s*=\s*\d+/, `memory = ${vmSpec.memory}`)
+    .replace(/disk_size\s*=\s*\d+/, `disk_size = ${vmSpec.disk_size}`);
+
+  // ✅ LOGIQUE CRITIQUE : Utiliser le disque final existant comme volume source pour éviter la perte de données
+  if (currentFinalDiskName) {
+    // On remplace le volume_name original par le disque final actuel
+    content = content.replace(/volume_name\s*=\s*".*"/, `volume_name = "${currentFinalDiskName}"`);
+  }
+
+  await fs.writeFile(varsPath, content);
+  console.log(`[Terraform] Config updated in ${vmDir}`);
+};
+
 export const applyConfig = async (vmDir) => {
   const cmd = `cd ${vmDir} && terraform init -input=false && terraform apply -auto-approve`;
   
