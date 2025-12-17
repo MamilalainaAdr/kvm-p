@@ -124,19 +124,19 @@ export default function AdminMonitoring() {
       {/* ✅ STATS GLOBALES */}
       <Card>
         <div>
-          <h2 className="text-xl font-bold text-text mb-4 flex items-center gap-2">
+          <h2 className="text-2xl font-bold text-text mb-4 flex items-center gap-2">
             Bienvenue, <em><b className='text-primary'>{user.name}</b></em>
           </h2>
           <div className="grid grid-cols-3 gap-4 text-sm">
-            <div className="text-center p-2 bg-background rounded hover:shadow-md transition-shadow">
+            <div className="text-center p-2 bg-background/20 rounded hover:border hover:border-muted/10">
               <p className="text-muted text-xs">Utilisateurs</p>
               <p className="font-medium text-text">{globalStats.totalUsers}</p>
             </div>
-            <div className="text-center p-2 bg-background rounded hover:shadow-md transition-shadow">
+            <div className="text-center p-2  bg-background/20 rounded hover:border hover:border-muted/10">
               <p className="text-muted text-xs">Total VMs</p>
               <p className="font-medium text-warning">{globalStats.totalVMs}</p>
             </div>
-            <div className="text-center p-2 bg-background rounded hover:shadow-md transition-shadow">
+            <div className="text-center p-2  bg-background/20 rounded hover:border hover:border-muted/10">
               <p className="text-muted text-xs">VMs Actives</p>
               <p className="font-medium text-success">{systemStats.system?.activeVMs ?? 0}</p>
             </div>
@@ -146,13 +146,13 @@ export default function AdminMonitoring() {
       
       {/* ✅ MONITORING SYSTÈME */}
       <Card>
-        <h2 className="text-xl font-bold text-text mb-4 flex items-center gap-2">
+        <h2 className="text-2xl font-bold text-text mb-4 flex items-center gap-2">
           Informations Système
         </h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {stats.map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="bg-background rounded-lg p-4 text-center hover:shadow-md transition-shadow border border-transparent hover:border-primary/20">
+            <div key={label} className="bg-background/20 rounded-lg p-4 text-center border border-transparent hover:border-muted/20">
               <Icon className={`w-8 h-8 mx-auto mb-2 ${color}`} />
               <p className="text-sm text-muted mb-1">{label}</p>
               <p className="text-2xl font-bold text-text">{value}</p>

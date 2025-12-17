@@ -2,10 +2,10 @@ import { Check } from 'lucide-react';
 import { Card } from './ui/Card';
 
 const PLANS = [
-  { id: 'free', name: 'OB-1', vcpu: 1, memory: 512, disk: 10, price: 'MGA 5k/mois' },
-  { id: 'basic', name: 'OB-2', vcpu: 1, memory: 1024, disk: 20, price: 'MGA 10k/mois' },
-  { id: 'pro', name: 'OB-3', vcpu: 2, memory: 1536, disk: 50, price: 'MGA 15k/mois' },
-  { id: 'enterprise', name: 'OB-4', vcpu: 2, memory: 2048, disk: 80, price: 'MGA 20k/mois' },
+  { id: 'tiny', name: 'Tiny', vcpu: 1, memory: 512, disk: 10 },
+  { id: 'small', name: 'Small', vcpu: 1, memory: 1024, disk: 20 },
+  { id: 'medium', name: 'Medium', vcpu: 2, memory: 1536, disk: 40 },
+  { id: 'large', name: 'Large', vcpu: 2, memory: 2048, disk: 80 },
 ];
 
 export default function PlanSelector({ selectedPlan, onSelect }) {
@@ -22,7 +22,7 @@ export default function PlanSelector({ selectedPlan, onSelect }) {
           }`}
         >
           <div className="flex justify-between items-start mb-4">
-            <h3 className="font-bold text-lg text-text">{plan.name}</h3>
+            <h3 className="font-bold text-lg text-primary">{plan.name}</h3>
             {selectedPlan?.id === plan.id && (
               <div className="bg-primary text-white rounded-full p-1">
                 <Check className="w-4 h-4" />
@@ -30,7 +30,7 @@ export default function PlanSelector({ selectedPlan, onSelect }) {
             )}
           </div>
           
-          <div className="space-y-2 text-sm text-muted mb-4">
+          <div className="space-y-2 text-sm text-muted">
             <div className="flex justify-between">
               <span>VCPU</span>
               <span className="font-medium text-text">{plan.vcpu}</span>
@@ -43,12 +43,6 @@ export default function PlanSelector({ selectedPlan, onSelect }) {
               <span>Disque</span>
               <span className="font-medium text-text">{plan.disk} Go</span>
             </div>
-          </div>
-          
-          <div className="text-center">
-            <span className="px-3 py-1 bg-primary text-white text-sm rounded-full font-medium">
-              {plan.price}
-            </span>
           </div>
         </Card>
       ))}
