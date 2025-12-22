@@ -73,7 +73,7 @@ export default function UserMonitoring() {
                       <Activity className="w-4 h-4 mx-auto mb-1 text-success" />
                       <p className="text-muted text-xs">RAM</p>
                       <p className="font-medium text-text text-xs">
-                        {vm.status === 'running' ? vm.memory : 0} / {vm.memory} MB
+                        {vm.status === 'running' ? vm.memoryUsed : 0} / {vm.memory} MB
                       </p>
                     </div>
                     {/* Disk Usage vs Total */}

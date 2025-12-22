@@ -48,7 +48,7 @@ export async function getSystemStats() {
 }
 
 export async function getVMStats(userId, isAdmin = false) {
-  const { VirtualMachine, User } = await import('../models/index.js');
+  const { VirtualMachine } = await import('../models/index.js');
   
   const where = isAdmin ? {} : { user_id: userId };
   const vms = await VirtualMachine.findAll({ where, raw: true });
@@ -57,26 +57,32 @@ export async function getVMStats(userId, isAdmin = false) {
   
   const stats = await Promise.all(vms.map(async (vm) => {
     if (!vm.full_name) {
-      return { ...vm, cpu: 0, memory: 0, diskUsed: 0, diskTotal: vm.disk_size };
+      return { ...vm, cpu: 0, memoryUsed: 0, diskUsed: 0, diskTotal: vm.disk_size };
     }
     
     try {
+      // balloon.current donne la mémoire utilisée par la VM en KiB
       const domstatsCmd = `virsh domstats --domain "${vm.full_name}" --cpu-total --balloon | grep -E 'cpu.time|balloon.current'`;
       const { stdout } = await execAsync(domstatsCmd, { timeout: 3000 });
       
       const cpuMatch = stdout.match(/cpu.time=(\d+)/);
       const memMatch = stdout.match(/balloon.current=(\d+)/);
       
+      // Conversion KiB -> MiB (Division par 1024 au lieu de 1024^2)
+      const memoryUsedMiB = memMatch ? Math.round(parseInt(memMatch[1]) / 1024) : 0;
+      
       return {
         ...vm,
-        cpu: cpuMatch ? Math.round(parseInt(cpuMatch[1]) / 1000000) : 0,
-        memory: memMatch ? Math.round(parseInt(memMatch[1]) / 1024**2) : 0,
-        diskUsed: vm.disk_size * 0.8, // Estimation
+        // cpu reste en millisecondes (cumulatif)
+        cpu: cpuMatch ? Math.round(parseInt(cpuMatch[1]) / 1000000) : 0, 
+        // On ajoute memoryUsed pour le monitoring sans écraser vm.memory (le total)
+        memoryUsed: memoryUsedMiB, 
+        diskUsed: vm.disk_size * 0.8, // Simulation de l'usage disque
         diskTotal: vm.disk_size
       };
     } catch (err) {
       console.warn(`[Monitoring] Erreur VM ${vm.full_name}:`, err.message);
-      return { ...vm, cpu: 0, memory: 0, diskUsed: 0, diskTotal: vm.disk_size, error: err.message };
+      return { ...vm, cpu: 0, memoryUsed: 0, diskUsed: 0, diskTotal: vm.disk_size, error: err.message };
     }
   }));
   

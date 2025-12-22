@@ -129,16 +129,16 @@ export default function AdminMonitoring() {
           </h2>
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div className="text-center p-2 bg-background/20 rounded hover:border hover:border-muted/10">
-              <p className="text-muted text-xs">Utilisateurs</p>
-              <p className="font-medium text-text">{globalStats.totalUsers}</p>
+              <p className="text-muted text-sm">Utilisateurs</p>
+              <p className="font-medium text-xl">{globalStats.totalUsers}</p>
             </div>
             <div className="text-center p-2  bg-background/20 rounded hover:border hover:border-muted/10">
-              <p className="text-muted text-xs">Total VMs</p>
-              <p className="font-medium text-warning">{globalStats.totalVMs}</p>
+              <p className="text-muted text-sm">Total VMs</p>
+              <p className="font-medium text-xl text-warning">{globalStats.totalVMs}</p>
             </div>
             <div className="text-center p-2  bg-background/20 rounded hover:border hover:border-muted/10">
-              <p className="text-muted text-xs">VMs Actives</p>
-              <p className="font-medium text-success">{systemStats.system?.activeVMs ?? 0}</p>
+              <p className="text-muted text-sm">VMs Actives</p>
+              <p className="font-medium text-xl text-success">{systemStats.system?.activeVMs ?? 0}</p>
             </div>
           </div>
         </div>
