@@ -3,6 +3,7 @@ import { body, validationResult } from 'express-validator';
 import { requireAuth } from '../middlewares/auth.js';
 import { VirtualMachine } from '../models/index.js';
 import { vmQueue, PRIORITIES } from '../services/queue.js';
+import { getSystemStats } from '../services/monitoring.js';
 
 const router = express.Router();
 
@@ -12,14 +13,14 @@ const validate = (req, res, next) => {
   next();
 };
 
-// List VMs
+// Liste VMs
 router.get('/', requireAuth, async (req, res) => {
   const where = req.user.role === 'admin' ? {} : { user_id: req.user.id };
   const vms = await VirtualMachine.findAll({ where, order: [['id', 'DESC']] });
   res.json({ vms });
 });
 
-// Create VM
+// Création VM
 router.post('/',
   requireAuth,
   body('name').trim().matches(/^[a-z0-9-]+$/i).withMessage('Nom invalide (alphanumérique et - uniquement)'),
@@ -31,27 +32,49 @@ router.post('/',
   validate,
   async (req, res) => {
     if (req.user.role === 'admin') return res.status(403).json({ message: 'Admin ne peut pas créer de VM' });
-    
+
+    // Vérifier quota utilisateur
+    const userVms = await VirtualMachine.count({ where: { user_id: req.user.id } });
+    if (userVms >= 3) {
+      return res.status(400).json({ message: 'Vous avez déjà atteint la limite de 3 VMs.' });
+    }
+
+    // Vérifier ressources disponibles sur l'hôte
+    const stats = await getSystemStats();
+    const freeCPU = stats.cpu.cores - stats.cpu.usage / 100; // approximation
+    const freeRAM = stats.ram.total - stats.ram.used;
+    const freeDisk = stats.disk.total - stats.disk.used;
+
+    if (freeCPU < 1) {
+      return res.status(503).json({ message: 'Ressources insuffisantes (CPU) sur le serveur.' });
+    }
+    if (freeRAM < 1024) { // 1 Go
+      return res.status(503).json({ message: 'Ressources insuffisantes (RAM) sur le serveur.' });
+    }
+    if (freeDisk < 50) {
+      return res.status(503).json({ message: 'Ressources insuffisantes (disque) sur le serveur.' });
+    }
+
     const { name, os_type, version, vcpu, memory, disk_size } = req.body;
-    
+
     const exists = await VirtualMachine.findOne({ where: { user_id: req.user.id, name } });
     if (exists) return res.status(409).json({ message: 'VM existe déjà' });
-    
+
     const ext = (version === '2404' || version === '2204') ? 'img' : 'qcow2';
     const vm = await VirtualMachine.create({
       user_id: req.user.id, name, os_type, version, vcpu, memory, disk_size, status: 'pending'
     });
-    
+
     await vmQueue.add('create', 
       { user: req.user, vmSpec: { name, os_type, version, vcpu, memory, disk_size, ext }, vmId: vm.id },
       { priority: PRIORITIES.HIGH }
     );
-    
+
     res.status(202).json({ message: 'VM en création', vm: { id: vm.id, name, status: 'pending' } });
   }
 );
 
-// ✅ UPDATE VM RESOURCES
+// UPDATE VM RESOURCES
 router.put('/:id',
   requireAuth,
   body('vcpu').isInt({ min: 1 }),
