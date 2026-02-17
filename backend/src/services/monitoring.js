@@ -1,90 +1,139 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { VirtualMachine } from '../models/index.js';
+import { getVMState } from './virsh.js';
 
 const execAsync = promisify(exec);
 
+/**
+ * Récupère les statistiques système de l'hôte
+ * @returns {Promise<Object>} { cpu: { usage, cores }, ram: { used, total, percent }, disk: { used, total, percent } }
+ */
 export async function getSystemStats() {
   try {
-    console.log('[Monitoring] Collecte système en cours...');
-    
-    const cpuCmd = "top -bn1 | grep 'Cpu(s)' | awk '{print $2}' | cut -d'%' -f1";
-    const memCmd = "free | grep Mem | awk '{printf \"%.1f\", $3/$2 * 100.0}'";
-    const diskCmd = "df / | tail -1 | awk '{print $5}' | cut -d'%' -f1";
-    const vmCmd = "virsh list --state-running --name | grep -v '^$' | wc -l";
-    const libvirtCmd = "ps -C libvirtd -o rss= 2>/dev/null | awk '{s+=$1} END {print s}'";
+    // CPU : utilisation moyenne (1 min) en pourcentage
+    const cpuUsage = await execAsync("top -bn1 | grep '%Cpu' | awk '{print $2}'");
+    const cpuCores = await execAsync('nproc');
+    const cpuPercent = parseFloat(cpuUsage.stdout.trim()) || 0;
+    const cores = parseInt(cpuCores.stdout.trim()) || 1;
 
-    const [
-      { stdout: cpuOut },
-      { stdout: memOut },
-      { stdout: diskOut },
-      { stdout: vmOut },
-      { stdout: libvirtMem }
-    ] = await Promise.allSettled([
-      execAsync(cpuCmd),
-      execAsync(memCmd),
-      execAsync(diskCmd),
-      execAsync(vmCmd),
-      execAsync(libvirtCmd)
-    ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : { stdout: '0' }));
+    // RAM : utilisé / total en MB
+    const memInfo = await execAsync("free -m | awk '/Mem:/ {print $3 \" \" $2}'");
+    const [memUsed, memTotal] = memInfo.stdout.trim().split(' ').map(Number);
+    const ramPercent = memTotal > 0 ? Math.round((memUsed / memTotal) * 100) : 0;
 
-    const stats = {
-      timestamp: new Date().toISOString(),
-      system: {
-        cpuUsage: parseFloat(cpuOut.trim()) || 0,
-        memoryUsage: parseFloat(memOut.trim()) || 0,
-        diskUsage: parseInt(diskOut.trim()) || 0,
-        activeVMs: parseInt(vmOut.trim()) || 0
-      },
-      libvirt: {
-        memoryMB: Math.round((parseInt(libvirtMem.trim()) || 0) / 1024)
-      }
+    // Disque : utilisé / total en GB (partition racine)
+    const diskInfo = await execAsync("df -BG / | awk 'NR==2 {print $3 \" \" $2}' | sed 's/G//g'");
+    const [diskUsedGB, diskTotalGB] = diskInfo.stdout.trim().split(' ').map(Number);
+    const diskPercent = diskTotalGB > 0 ? Math.round((diskUsedGB / diskTotalGB) * 100) : 0;
+
+    // Nombre de VMs actives sur l'hôte (via virsh)
+    const activeVMs = await execAsync("virsh list --state-running --name | grep -c .");
+    const activeCount = parseInt(activeVMs.stdout.trim()) || 0;
+
+    return {
+      cpu: { usage: cpuPercent, cores },
+      ram: { used: memUsed, total: memTotal, percent: ramPercent },
+      disk: { used: diskUsedGB, total: diskTotalGB, percent: diskPercent },
+      activeVMs: activeCount
     };
-
-    return stats;
-  } catch (err) {
-    console.error('[Monitoring] Erreur collecte:', err.message);
-    return { error: 'Failed to fetch stats', details: err.message };
+  } catch (error) {
+    console.error('[Monitoring] Erreur stats système:', error.message);
+    return {
+      cpu: { usage: 0, cores: 0 },
+      ram: { used: 0, total: 0, percent: 0 },
+      disk: { used: 0, total: 0, percent: 0 },
+      activeVMs: 0
+    };
   }
 }
 
-export async function getVMStats(userId, isAdmin = false) {
-  const { VirtualMachine } = await import('../models/index.js');
-  
-  const where = isAdmin ? {} : { user_id: userId };
-  const vms = await VirtualMachine.findAll({ where, raw: true });
-  
-  console.log(`[Monitoring] Récupération stats pour ${vms.length} VMs (userId: ${userId})`);
-  
-  const stats = await Promise.all(vms.map(async (vm) => {
-    if (!vm.full_name) {
-      return { ...vm, cpu: 0, memoryUsed: 0, diskUsed: 0, diskTotal: vm.disk_size };
+/**
+ * Récupère les statistiques d'une VM spécifique
+ * @param {string} vmName - Nom de la VM (full_name)
+ * @returns {Promise<Object|null>}
+ */
+export async function getVMStats(vmName) {
+  try {
+    const state = await getVMState(vmName);
+    if (state === 'unknown') return null;
+
+    // CPU : temps CPU brut en nanosecondes
+    const cpuStats = await execAsync(`virsh domstats "${vmName}" --cpu-total | grep cpu.time | awk '{print $3}'`);
+    const cpuTime = parseInt(cpuStats.stdout.trim()) || 0;
+
+    // Nombre de vCPU
+    const vcpuInfo = await execAsync(`virsh dominfo "${vmName}" | grep 'CPU(s)' | awk '{print $2}'`);
+    const vcpu = parseInt(vcpuInfo.stdout.trim()) || 1;
+
+    // RAM : parsing fiable
+    const memCmd = await execAsync(`virsh dommemstat "${vmName}"`);
+    const memLines = memCmd.stdout.split('\n');
+
+    let memActualKB = 0;
+    let memUnusedKB = 0;
+
+    for (const line of memLines) {
+      const [key, val] = line.trim().split(' ');
+      if (key === 'actual') memActualKB = Number(val) || 0;
+      if (key === 'unused') memUnusedKB = Number(val) || 0;
     }
-    
-    try {
-      // balloon.current donne la mémoire utilisée par la VM en KiB
-      const domstatsCmd = `virsh domstats --domain "${vm.full_name}" --cpu-total --balloon | grep -E 'cpu.time|balloon.current'`;
-      const { stdout } = await execAsync(domstatsCmd, { timeout: 3000 });
-      
-      const cpuMatch = stdout.match(/cpu.time=(\d+)/);
-      const memMatch = stdout.match(/balloon.current=(\d+)/);
-      
-      // Conversion KiB -> MiB (Division par 1024 au lieu de 1024^2)
-      const memoryUsedMiB = memMatch ? Math.round(parseInt(memMatch[1]) / 1024) : 0;
-      
+
+    const memActual = memActualKB / 1024;
+    const memUsed = (memActualKB - memUnusedKB) / 1024;
+    const memPercent = memActual > 0 ? Math.round((memUsed / memActual) * 100) : 0;
+
+    // Disque : récupération en bytes puis conversion GB
+    const diskPath = await execAsync(`virsh domblklist "${vmName}" | awk '/vda/ {print $2}'`);
+    const path = diskPath.stdout.trim();
+
+    if (path) {
+      const volInfo = await execAsync(`virsh vol-info --bytes "${path}" --pool default`);
+      const output = volInfo.stdout;
+
+      const capacityMatch = output.match(/Capacity:\s+(\d+)/);
+      const allocationMatch = output.match(/Allocation:\s+(\d+)/);
+
+      const capacityBytes = capacityMatch ? Number(capacityMatch[1]) : 0;
+      const allocationBytes = allocationMatch ? Number(allocationMatch[1]) : 0;
+
+      const diskTotal = Math.round(capacityBytes / 1024 / 1024 / 1024);
+      const diskUsed = Math.round(allocationBytes / 1024 / 1024 / 1024);
+      const diskPercent = diskTotal > 0 ? Math.round((diskUsed / diskTotal) * 100) : 0;
+
       return {
-        ...vm,
-        // cpu reste en millisecondes (cumulatif)
-        cpu: cpuMatch ? Math.round(parseInt(cpuMatch[1]) / 1000000) : 0, 
-        // On ajoute memoryUsed pour le monitoring sans écraser vm.memory (le total)
-        memoryUsed: memoryUsedMiB, 
-        diskUsed: vm.disk_size * 0.8, // Simulation de l'usage disque
-        diskTotal: vm.disk_size
+        name: vmName,
+        status: state,
+        cpu: { usage: cpuTime, vcpu },
+        ram: { used: memUsed, total: memActual, percent: memPercent },
+        disk: { used: diskUsed, total: diskTotal, percent: diskPercent }
       };
-    } catch (err) {
-      console.warn(`[Monitoring] Erreur VM ${vm.full_name}:`, err.message);
-      return { ...vm, cpu: 0, memoryUsed: 0, diskUsed: 0, diskTotal: vm.disk_size, error: err.message };
     }
-  }));
-  
-  return { vms: stats, total: vms.length };
+
+    return null;
+  } catch (error) {
+    console.error(`[Monitoring] Erreur VM ${vmName}:`, error.message);
+    return null;
+  }
+}
+
+/**
+ * Récupère les statistiques de toutes les VMs d'un utilisateur (ou toutes si admin)
+ * @param {number} userId - ID de l'utilisateur
+ * @param {boolean} isAdmin - Si admin, toutes les VMs sont retournées
+ * @returns {Promise<Array>}
+ */
+export async function getUserVMsStats(userId, isAdmin) {
+  const where = isAdmin ? {} : { user_id: userId };
+  const vms = await VirtualMachine.findAll({ where });
+
+  const stats = [];
+  for (const vm of vms) {
+    if (vm.full_name) {
+      const stat = await getVMStats(vm.full_name);
+      if (stat) stats.push({ ...stat, ...vm.toJSON() });
+    }
+  }
+
+  return stats;
 }
