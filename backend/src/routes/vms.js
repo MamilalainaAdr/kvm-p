@@ -41,18 +41,19 @@ router.post('/',
 
     // Vérifier ressources disponibles sur l'hôte
     const stats = await getSystemStats();
-    const freeCPU = stats.cpu.cores - stats.cpu.usage / 100; // approximation
-    const freeRAM = stats.ram.total - stats.ram.used;
-    const freeDisk = stats.disk.total - stats.disk.used;
+    const cpuUsagePercent = stats.cpu?.usage ?? 0;
+    const freeCores = Math.max(0, Math.floor((1 - cpuUsagePercent / 100) * stats.cpu?.cores || 0));
+    const usedRAM = stats.ram.percent;
+    const usedDisk = stats.disk.percent;
 
-    if (freeCPU < 1) {
-      return res.status(503).json({ message: 'Ressources insuffisantes (CPU) sur le serveur.' });
+    if (freeCores < 1) {
+      return res.status(400).json({ message: 'Ressources insuffisantes (CPU) sur le serveur.' });
     }
-    if (freeRAM < 1024) { // 1 Go
-      return res.status(503).json({ message: 'Ressources insuffisantes (RAM) sur le serveur.' });
+    if (usedRAM > 75) {
+      return res.status(400).json({ message: 'Ressources insuffisantes (RAM) sur le serveur.' });
     }
-    if (freeDisk < 50) {
-      return res.status(503).json({ message: 'Ressources insuffisantes (disque) sur le serveur.' });
+    if (usedDisk > 75) {
+      return res.status(400).json({ message: 'Ressources insuffisantes (disque) sur le serveur.' });
     }
 
     const { name, os_type, version, vcpu, memory, disk_size } = req.body;

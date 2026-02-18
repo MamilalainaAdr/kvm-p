@@ -2,8 +2,18 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { VirtualMachine } from '../models/index.js';
 import { getVMState } from './virsh.js';
+import fs from 'fs/promises';
 
 const execAsync = promisify(exec);
+
+// helper dans un fichier
+async function readProcCpu() {
+  const s = await fs.readFile('/proc/stat', 'utf8');
+  const parts = s.split('\n')[0].trim().split(/\s+/).slice(1).map(Number);
+  const total = parts.reduce((a, b) => a + b, 0);
+  const idle = parts[3];
+  return { idle, total };
+}
 
 /**
  * Récupère les statistiques système de l'hôte
@@ -12,10 +22,16 @@ const execAsync = promisify(exec);
 export async function getSystemStats() {
   try {
     // CPU : utilisation moyenne (1 min) en pourcentage
-    const cpuUsage = await execAsync("top -bn1 | grep '%Cpu' | awk '{print $2}'");
     const cpuCores = await execAsync('nproc');
-    const cpuPercent = parseFloat(cpuUsage.stdout.trim()) || 0;
     const cores = parseInt(cpuCores.stdout.trim()) || 1;
+
+    const t1 = await readProcCpu();
+    await new Promise(r => setTimeout(r, 200)); // 200ms interval
+    const t2 = await readProcCpu();
+
+    const idleDiff = t2.idle - t1.idle;
+    const totalDiff = t2.total - t1.total;
+    const cpuPercent = totalDiff > 0 ? Math.round((1 - idleDiff / totalDiff) * 100) : 0;
 
     // RAM : utilisé / total en MB
     const memInfo = await execAsync("free -m | awk '/Mem:/ {print $3 \" \" $2}'");
@@ -28,7 +44,7 @@ export async function getSystemStats() {
     const diskPercent = diskTotalGB > 0 ? Math.round((diskUsedGB / diskTotalGB) * 100) : 0;
 
     // Nombre de VMs actives sur l'hôte (via virsh)
-    const activeVMs = await execAsync("virsh list --state-running --name | grep -c .");
+    const activeVMs = await execAsync("virsh list --state-running --name | sed '/^$/d' | wc -l");
     const activeCount = parseInt(activeVMs.stdout.trim()) || 0;
 
     return {

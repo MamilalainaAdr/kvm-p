@@ -86,7 +86,7 @@ export default function AdminMonitoring() {
     {
       label: 'VMs Actives',
       value: systemStats.activeVMs ?? 0,
-      real: `sur ${systemStats.activeVMs ?? 0}`,
+      real: `sur ${globalStats.totalVMs}`,
       icon: Server,
       color: 'text-primary'
     }
