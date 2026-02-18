@@ -71,7 +71,7 @@ router.post('/',
       { priority: PRIORITIES.HIGH }
     );
 
-    res.status(202).json({ message: 'VM en création', vm: { id: vm.id, name, status: 'pending' } });
+    res.status(202).json({ message: 'VM en création', vm: { id: vm.id, name, status: 'pending'} });
   }
 );
 

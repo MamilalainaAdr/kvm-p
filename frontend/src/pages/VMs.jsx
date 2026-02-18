@@ -153,7 +153,7 @@ export default function VMs() {
             <thead className="bg-background uppercase text-muted font-bold text-xs">
               <tr>
                 <th className="p-3 rounded-tl-lg">Nom</th>
-                <th className="p-3">IP & OS</th>
+                <th className="p-3">IP, PORT & OS</th>
                 <th className="p-3">Ressources</th>
                 <th className="p-3 text-center">Clé SSH</th>
                 <th className="p-3">État</th>
@@ -166,7 +166,11 @@ export default function VMs() {
                   <td className="p-3 font-medium text-text">{vm.name}</td>
                   <td className="p-3">
                     <div className="flex flex-col">
-                      <span className="font-mono text-xs">{vm.ip_address || '...'}</span>
+                      {/* <span className="font-mono text-xs">{vm.ip_address || '...'}</span> */}
+                      <span className="font-mono text-xs">{vm.public_ip || 'N/A'}:{vm.port || '22'}</span>
+                      {user.role === 'admin' && (
+                        <span className="text-xs text-muted">Interne: {vm.internal_ip || '...'}</span>
+                      )}
                       <span className="text-xs text-muted">{vm.os_type} {vm.version}</span>
                     </div>
                   </td>

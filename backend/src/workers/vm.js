@@ -4,6 +4,7 @@ import { vmQueue, emailQueue } from '../services/queue.js';
 import * as terraform from '../services/terraform.js';
 import * as virsh from '../services/virsh.js';
 import { VirtualMachine } from '../models/index.js';
+import { findFreePort, addPortForwarding, removePortForwarding } from '../services/portManager.js';
 
 let lastSyncRun = 0;
 const MIN_SYNC_INTERVAL = 4 * 60 * 1000;
@@ -16,7 +17,7 @@ setInterval(async () => {
 
 // Handler CRÉATION
 vmQueue.process('create', async (job) => {
-  console.log(`[VM Worker] 📥 Job CREATE:`, job.id);
+  console.log(`[VM Worker] Job CREATE:`, job.id);
   const { user, vmSpec, vmId } = job.data;
   
   try {
@@ -29,19 +30,35 @@ vmQueue.process('create', async (job) => {
     
     await terraform.applyWithRetry(vmDir);
     const outputs = await terraform.getOutputs(vmDir);
-    
-    // ✅ Sauvegarder la clé SSH dans la BDD
+    const internalIp = outputs.ip;
+    if (!internalIp) throw new Error('IP non obtenue');
+
+    // Trouver un port libre
+    const port = await findFreePort();
+    // Configurer iptables
+    await addPortForwarding(port, internalIp);
+
+    // Mettre à jour la VM avec IP, port, public_ip
     await VirtualMachine.update(
       { 
-        status: 'running', 
-        ip_address: outputs.ip || null, 
+        status: 'running',
+        ip_address: internalIp,
+        internal_ip: internalIp,
+        public_ip: process.env.PUBLIC_IP,
+        port,
         tf_dir: vmDir,
-        ssh_key: outputs.sshKey || null // stockage
+        ssh_key: outputs.sshKey
       },
       { where: { id: vmId } }
     );
     
-    await emailQueue.add('vm-created', { email: user.email, vmName: vmSpec.name, ip: outputs.ip, sshKey: outputs.sshKey });
+    await emailQueue.add('vm-created', { 
+      email: user.email, 
+      vmName: vmSpec.name, 
+      ip: process.env.PUBLIC_IP, 
+      port,
+      sshKey: outputs.sshKey 
+    });
     return { success: true, vmId };
   } catch (err) {
     await VirtualMachine.update({ status: 'error' }, { where: { id: vmId } });
@@ -49,7 +66,7 @@ vmQueue.process('create', async (job) => {
   }
 });
 
-// ✅ Handler UPDATE
+// Handler UPDATE
 vmQueue.process('update', async (job) => {
   console.log(`[VM Worker] 📥 Job UPDATE:`, job.id);
   const { user, vmId, specs } = job.data;
@@ -92,10 +109,22 @@ vmQueue.process('destroy', async (job) => {
   const fullName = vm.full_name;
   
   try {
+    // Si la VM est éteinte, la démarrer pour permettre la destruction
+    if (vm.status === 'stopped' || vm.status === 'shut off') {
+      await virsh.startVM(fullName);
+      // Attendre un peu que la VM soit active
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+
     if (vm.tf_dir) {
       await terraform.destroyConfig(vm.tf_dir);
     } else if (fullName) {
       await virsh.forceStopVM(fullName);
+    }
+
+    // Supprimer les règles iptables
+    if (vm.port && vm.internal_ip) {
+      await removePortForwarding(vm.port, vm.internal_ip);
     }
     
     await VirtualMachine.destroy({ where: { id: vm.id } });

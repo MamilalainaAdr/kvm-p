@@ -6,7 +6,7 @@ const transporter = nodemailer.createTransport({
   auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
 });
 
-const generateGuide = (ip, keyName) => {
+const generateGuide = (ip, port, keyName) => {
   return `GUIDE DE CONNEXION SSH - OBOX
 -----------------------------------
 1. Sauvegardez la clé jointe (${keyName}) sur votre ordinateur.
@@ -21,9 +21,8 @@ const generateGuide = (ip, keyName) => {
    ssh-add ${keyName}
 
 5. Connectez-vous à la VM :
-   ssh -i ${keyName} root@${ip}
-   
-   (Note : Le port SSH est le port standard 22)
+   ssh -p ${port} -i ${keyName} root@${ip}
+
 -----------------------------------
 Merci d'utiliser OBox.
 `;
@@ -54,7 +53,7 @@ export const sendVerificationEmail = async (user, token) => {
   `);
 };
 
-export const sendVMEmail = async (user, vm, action, sshKey = null) => {
+export const sendVMEmail = async (user, vm, action, sshKey = null, port = null) => {
   let attachments = [];
   let html = '';
   let subject = '';
@@ -62,15 +61,16 @@ export const sendVMEmail = async (user, vm, action, sshKey = null) => {
   if (action === 'created') {
     subject = '✅ Votre VM est prête';
     const keyName = `${vm.name}.pem`;
-    const guideContent = generateGuide(vm.ip_address || 'IP_INCONNUE', keyName);
+    const publicIp = process.env.PUBLIC_IP || "127.0.0.1" ;
+    const guideContent = generateGuide(publicIp, vm.port || '22', keyName);
 
     html = `
       <h2>Machine virtuelle déployée 🚀</h2>
       <p>Bonjour ${user.name},</p>
       <p>Votre VM <b>${vm.name}</b> est opérationnelle.</p>
       <ul>
-        <li><b>IP :</b> ${vm.ip_address || 'En attente'}</li>
-        <li><b>Port :</b> 22</li>
+        <li><b>IP :</b> ${publicIp}</li>
+        <li><b>Port :</b> ${vm.port || '22'}</li>
         <li><b>OS :</b> ${vm.os_type} ${vm.version}</li>
       </ul>
       <p>🔐 <b>Important :</b> Vous trouverez ci-joint votre clé privée SSH et un guide de connexion.</p>
@@ -98,7 +98,6 @@ export const sendVMEmail = async (user, vm, action, sshKey = null) => {
         <li><b>RAM :</b> ${vm.memory} MB</li>
         <li><b>Disque :</b> ${vm.disk_size} GB</li>
       </ul>
-      <p>Un redémarrage peut être nécessaire pour appliquer tous les changements.</p>
     `;
   }
 
