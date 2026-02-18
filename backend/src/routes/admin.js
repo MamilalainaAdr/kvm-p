@@ -24,10 +24,10 @@ router.get('/users', async (req, res) => {
     vmCount: u.VirtualMachines?.length || 0
   }));
   
-  res.json({ users: formatted }); // ✅ CORRIGÉ: retourner le tableau formaté
+  res.json({ users: formatted });
 });
 
-// Email utilisateur lors de la suppression
+// Suppression d'un utilisateur (cascade)
 router.delete('/users/:id', async (req, res) => {
   const user = await User.findByPk(req.params.id, {
     include: [{ model: VirtualMachine }]
@@ -35,42 +35,46 @@ router.delete('/users/:id', async (req, res) => {
   
   if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
   
-  //  Vérification que VirtualMachines est bien un tableau
   if (!Array.isArray(user.VirtualMachines)) {
-    console.error('[Admin] VirtualMachines n est pas un tableau:', user.VirtualMachines);
+    console.error('[Admin] VirtualMachines n\'est pas un tableau:', user.VirtualMachines);
     return res.status(500).json({ message: 'Erreur interne' });
   }
 
-  //  Pour chaque VM, ajouter un job destroy CRITICAL
+  // Sauvegarder l'email AVANT suppression
+  const userEmail = user.email;
+  const userName = user.name;
+
+  // Ajouter des jobs destroy pour chaque VM
   for (const vm of user.VirtualMachines) {
     try {
       await vmQueue.add('destroy', { 
         vm: vm.toJSON(), 
-        user: { id: user.id, name: user.name, email: user.email } 
+        user: { id: user.id, name: userName, email: userEmail } 
       }, { priority: PRIORITIES.CRITICAL });
-      console.log(`[Admin] Job destroy ajouté pour VM ${vm.name} (${vm.full_name})`);
+      console.log(`[Admin] Job destroy ajoute pour VM ${vm.name} (${vm.full_name})`);
     } catch (err) {
       console.error(`[Admin] Erreur ajout job destroy pour VM ${vm.id}:`, err);
     }
   }
   
-  //  Envoyer email à l'utilisateur avant suppression
+  // Envoyer email de confirmation à l'utilisateur
   try {
     await sendEmail(
-      user.email,
-      'Compte supprimé - OBox',
-      `<p>Bonjour ${user.name},</p>
-       <p>Votre compte OBox et toutes vos machines virtuelles ont été supprimés par un administrateur.</p>
+      userEmail,
+      'Compte supprime - OBox',
+      `<p>Bonjour ${userName},</p>
+       <p>Votre compte OBox et toutes vos machines virtuelles ont ete supprimes par un administrateur.</p>
        <p>Si vous pensez qu'il s'agit d'une erreur, veuillez contacter le support.</p>`
     );
-    console.log(`[Admin] Email de suppression envoyé à ${user.email}`);
+    console.log(`[Admin] Email de suppression envoye a ${userEmail}`);
   } catch (err) {
-    console.error('[Admin] Erreur envoi email suppression:', err);
+    console.error('[Admin] Erreur envoi email suppression:', err.message);
+    // On ne bloque pas la suppression
   }
   
-  //  Suppression user après avoir initié les destroys
+  // Supprimer l'utilisateur (les VMs seront supprimées via les jobs)
   await user.destroy();
-  res.json({ message: 'Utilisateur supprimé, destruction des VMS en cours' });
+  res.json({ message: 'Utilisateur supprime, destruction des VMs en cours' });
 });
 
 export default router;

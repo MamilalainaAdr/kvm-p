@@ -6,21 +6,34 @@ const transporter = nodemailer.createTransport({
   auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
 });
 
+/**
+ * Vérifie que le transporteur SMTP est correctement configuré
+ */
+export async function verifyTransporter() {
+  try {
+    await transporter.verify();
+    console.log('Connexion SMTP etablie avec succes');
+  } catch (err) {
+    console.error('Erreur de configuration SMTP:', err.message);
+    throw err;
+  }
+}
+
 const generateGuide = (ip, port, keyName) => {
   return `GUIDE DE CONNEXION SSH - OBOX
 -----------------------------------
-1. Sauvegardez la clé jointe (${keyName}) sur votre ordinateur.
+1. Sauvegardez la cle jointe (${keyName}) sur votre ordinateur.
 
-2. Ouvrez un terminal et naviguez vers le dossier de la clé.
+2. Ouvrez un terminal et naviguez vers le dossier de la cle.
 
-3. Changez les permissions de la clé (Obligatoire) :
+3. Changez les permissions de la cle (Obligatoire) :
    chmod 600 ${keyName}
 
-4. Ajoutez la clé à votre agent SSH (Recommandé) :
+4. Ajoutez la cle a votre agent SSH (Recommande) :
    eval $(ssh-agent)
    ssh-add ${keyName}
 
-5. Connectez-vous à la VM :
+5. Connectez-vous a la VM :
    ssh -p ${port} -i ${keyName} root@${ip}
 
 -----------------------------------
@@ -38,18 +51,18 @@ export const sendEmail = async (to, subject, html, attachments = []) => {
       html,
       attachments
     });
-    console.log(`✅ Email envoyé à ${to}`);
+    console.log(`Email envoye a ${to}`);
   } catch (err) {
-    console.error('❌ Erreur envoi email:', err.message);
+    console.error('Erreur envoi email:', err.message);
     throw err;
   }
 };
 
 export const sendVerificationEmail = async (user, token) => {
   const url = `${process.env.CORS_ORIGIN}/verify-email?token=${token}`;
-  await sendEmail(user.email, 'Vérifiez votre email', `
+  await sendEmail(user.email, 'Verifiez votre email', `
     <p>Bonjour ${user.name},</p>
-    <p>Cliquez pour vérifier : <a href="${url}">${url}</a></p>
+    <p>Cliquez pour verifier : <a href="${url}">${url}</a></p>
   `);
 };
 
@@ -59,21 +72,21 @@ export const sendVMEmail = async (user, vm, action, sshKey = null, port = null) 
   let subject = '';
 
   if (action === 'created') {
-    subject = '✅ Votre VM est prête';
+    subject = 'Votre VM est prete';
     const keyName = `${vm.name}.pem`;
     const publicIp = process.env.PUBLIC_IP || "127.0.0.1" ;
     const guideContent = generateGuide(publicIp, vm.port || '22', keyName);
 
     html = `
-      <h2>Machine virtuelle déployée 🚀</h2>
+      <h2>Machine virtuelle deployee</h2>
       <p>Bonjour ${user.name},</p>
-      <p>Votre VM <b>${vm.name}</b> est opérationnelle.</p>
+      <p>Votre VM <b>${vm.name}</b> est operationnelle.</p>
       <ul>
         <li><b>IP :</b> ${publicIp}</li>
         <li><b>Port :</b> ${vm.port || '22'}</li>
         <li><b>OS :</b> ${vm.os_type} ${vm.version}</li>
       </ul>
-      <p>🔐 <b>Important :</b> Vous trouverez ci-joint votre clé privée SSH et un guide de connexion.</p>
+      <p><b>Important :</b> Vous trouverez ci-joint votre cle privee SSH et un guide de connexion.</p>
     `;
 
     if (sshKey) {
@@ -83,16 +96,16 @@ export const sendVMEmail = async (user, vm, action, sshKey = null, port = null) 
       ];
     }
   } else if (action === 'deleted') {
-    subject = '🗑️ VM supprimée';
+    subject = 'VM supprimee';
     html = `
-      <h2>Machine virtuelle supprimée</h2>
-      <p>La VM <b>${vm.name}</b> a été supprimée définitivement.</p>
+      <h2>Machine virtuelle supprimee</h2>
+      <p>La VM <b>${vm.name}</b> a ete supprimee definitivement.</p>
     `;
   } else if (action === 'updated') {
-    subject = '🔄 VM Mise à jour';
+    subject = 'VM Mise a jour';
     html = `
-      <h2>Ressources mises à jour</h2>
-      <p>La VM <b>${vm.name}</b> a été modifiée :</p>
+      <h2>Ressources mises a jour</h2>
+      <p>La VM <b>${vm.name}</b> a ete modifiee :</p>
       <ul>
         <li><b>vCPU :</b> ${vm.vcpu}</li>
         <li><b>RAM :</b> ${vm.memory} MB</li>
